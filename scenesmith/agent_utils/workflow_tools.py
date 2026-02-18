@@ -11,8 +11,6 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from agents import function_tool
-
 from scenesmith.agent_utils.response_datatypes import JSONSerializable
 
 console_logger = logging.getLogger(__name__)
@@ -75,7 +73,6 @@ class WorkflowTools:
     def _create_tool_closures(self) -> dict[str, Any]:
         """Create closure-based tools that capture self."""
 
-        @function_tool
         def designer_todo_manager(action: str, task: str | None = None) -> str:
             """Track your design tasks.
 

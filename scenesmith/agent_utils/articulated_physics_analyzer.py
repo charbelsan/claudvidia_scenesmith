@@ -13,6 +13,7 @@ import time
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -20,10 +21,10 @@ from omegaconf import DictConfig
 
 from scenesmith.agent_utils.blender.render_dataclasses import LinkMeshInfo
 from scenesmith.agent_utils.urdf_to_sdf import extract_link_meshes
-from scenesmith.agent_utils.vlm_service import VLMService
+# Removed: was VLMService - now handled by Claude subagents
 from scenesmith.prompts import prompt_manager
 from scenesmith.prompts.registry import MeshPhysicsPrompts
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 console_logger = logging.getLogger(__name__)
 
@@ -140,7 +141,7 @@ def analyze_articulated_physics(
     urdf_path: Path,
     link_names: list[str],
     bounding_box: dict,
-    vlm_service: VLMService,
+    vlm_service: "Any",  # Removed: was VLMService - now handled by Claude subagents
     cfg: DictConfig,
     category: str | None = None,
     num_side_views: int = 4,

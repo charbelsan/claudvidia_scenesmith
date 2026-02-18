@@ -13,15 +13,15 @@ import time
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from omegaconf import DictConfig
 
-from scenesmith.agent_utils.vlm_service import VLMService
+# Removed: was VLMService - now handled by Claude subagents
 from scenesmith.prompts import MeshPhysicsPrompts, prompt_manager
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 if TYPE_CHECKING:
     from scenesmith.agent_utils.blender.server_manager import BlenderServer
@@ -148,7 +148,7 @@ def get_front_axis_from_image_number(
 
 def analyze_mesh_orientation_and_material(
     mesh_path: Path,
-    vlm_service: VLMService,
+    vlm_service: "Any",  # Removed: was VLMService - now handled by Claude subagents
     cfg: DictConfig,
     elevation_degrees: float,
     blender_server: "BlenderServer",

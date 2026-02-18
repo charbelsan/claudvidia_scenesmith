@@ -2,21 +2,20 @@
 Vision tools for focused scene observation and visual feedback.
 
 This module provides capabilities for rendering focused views of individual
-furniture pieces with their manipulands. Returns images directly via
-ToolOutputImage so they persist in the session across API calls.
+furniture pieces with their manipulands. Returns images directly so they
+persist in the session across API calls.
 """
 
 import logging
 
 from typing import TYPE_CHECKING, Any
 
-from agents import ToolOutputImage, ToolOutputText, function_tool
 from omegaconf import DictConfig
 
 from scenesmith.agent_utils.physics_tools import check_physics_violations
 from scenesmith.agent_utils.rendering_manager import RenderingManager
 from scenesmith.agent_utils.room import AgentType, ObjectType, RoomScene, UniqueID
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 if TYPE_CHECKING:
     from scenesmith.agent_utils.blender.server_manager import BlenderServer
@@ -28,8 +27,8 @@ class ManipulandVisionTools:
     """Vision tools for focused scene observation.
 
     Provides capabilities for rendering focused views showing only specific
-    furniture and its manipulands. Returns images directly via ToolOutputImage
-    so they persist in the session across API calls.
+    furniture and its manipulands. Returns images directly so they persist
+    in the session across API calls.
     """
 
     def __init__(
@@ -65,8 +64,7 @@ class ManipulandVisionTools:
     def _create_tool_closures(self) -> dict[str, Any]:
         """Create tool closures with access to scene dependencies."""
 
-        @function_tool
-        async def observe_scene() -> list[ToolOutputImage | ToolOutputText]:
+        async def observe_scene() -> list:
             """Observe the current furniture and manipulands placed on it.
 
             Shows:
@@ -87,7 +85,6 @@ class ManipulandVisionTools:
             """
             return self._observe_scene_impl()
 
-        @function_tool
         async def check_physics() -> str:
             """Check for physics violations (collisions) in the current scene.
 
@@ -105,11 +102,11 @@ class ManipulandVisionTools:
             "check_physics": check_physics,
         }
 
-    def _observe_scene_impl(self) -> list[ToolOutputImage | ToolOutputText]:
+    def _observe_scene_impl(self) -> list:
         """Implementation for focused scene observation.
 
         Renders only the current furniture + its manipulands using scene filtering.
-        Returns images directly via ToolOutputImage so they persist in the session.
+        Returns images directly so they persist in the session.
 
         Returns:
             List of images plus a confirmation message.
@@ -123,9 +120,7 @@ class ManipulandVisionTools:
                 f"Furniture {self.current_furniture_id} not found for observation"
             )
             return [
-                ToolOutputText(
-                    text="Unable to observe scene - current furniture not found."
-                )
+                {"type": "text", "text": "Unable to observe scene - current furniture not found."}
             ]
 
         # Get support surfaces for this furniture.
@@ -223,16 +218,16 @@ class ManipulandVisionTools:
         if not images_dir or not images_dir.exists():
             console_logger.error("No renders generated for scene observation")
             return [
-                ToolOutputText(text="Unable to observe scene - no renders available.")
+                {"type": "text", "text": "Unable to observe scene - no renders available."}
             ]
 
         # Collect images and return them directly.
-        outputs: list[ToolOutputImage | ToolOutputText] = []
+        outputs: list = []
 
         for img_path in sorted(images_dir.glob("*.png")):
             img_base64 = encode_image_to_base64(img_path)
             outputs.append(
-                ToolOutputImage(image_url=f"data:image/png;base64,{img_base64}")
+                {"type": "image", "image_url": f"data:image/png;base64,{img_base64}"}
             )
 
         num_images = len(outputs)
@@ -241,12 +236,10 @@ class ManipulandVisionTools:
         if is_floor_observation:
             num_furniture = len(furniture_ids)
             outputs.append(
-                ToolOutputText(
-                    text=f"Floor and full scene context observed from {num_images} "
+                {"type": "text", "text": f"Floor and full scene context observed from {num_images} "
                     f"viewpoints. Visual feedback now available. "
                     f"(Showing: floor + {num_furniture} furniture + {len(manipuland_ids)} "
-                    "floor manipulands)"
-                )
+                    "floor manipulands)"}
             )
         else:
             num_surfaces = len(support_surfaces)
@@ -254,14 +247,12 @@ class ManipulandVisionTools:
                 f"{num_surfaces} surface(s)" if num_surfaces > 1 else "1 surface"
             )
             outputs.append(
-                ToolOutputText(
-                    text=f"Current furniture and its manipulands observed from {num_images} "
+                {"type": "text", "text": f"Current furniture and its manipulands observed from {num_images} "
                     f"viewpoints ({surface_text}). Visual feedback now available. "
-                    f"(Showing: {furniture.name} + {len(manipuland_ids)} manipulands)"
-                )
+                    f"(Showing: {furniture.name} + {len(manipuland_ids)} manipulands)"}
             )
 
-        console_logger.info(f"Returning {num_images} images via ToolOutputImage")
+        console_logger.info(f"Returning {num_images} images")
         return outputs
 
     def _check_physics_impl(self) -> str:

@@ -14,15 +14,12 @@ from scenesmith.agent_utils.asset_manager import (
     AssetGenerationRequest,
     AssetGenerationResult,
     AssetManager,
+    AssetOperationType,
     AssetPathConfig,
     FailedAsset,
 )
 from scenesmith.agent_utils.geometry_generation_server.dataclasses import (
     GeometryGenerationServerResponse,
-)
-from scenesmith.agent_utils.image_generation import (
-    AssetOperationType,
-    OpenAIImageGenerator,
 )
 from scenesmith.agent_utils.mesh_physics_analyzer import MeshPhysicsAnalysis
 from scenesmith.agent_utils.room import AgentType, ObjectType, SceneObject
@@ -106,7 +103,7 @@ class TestAssetManager(unittest.TestCase):
         )
 
         # Replace with proper mocks.
-        self.mock_image_generator = MagicMock(spec=OpenAIImageGenerator)
+        self.mock_image_generator = MagicMock()
         self.asset_manager.image_generator = self.mock_image_generator
 
         self.mock_geometry_client = MagicMock()

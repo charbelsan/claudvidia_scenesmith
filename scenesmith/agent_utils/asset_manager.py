@@ -5,8 +5,9 @@ import time
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import trimesh
@@ -37,10 +38,7 @@ from scenesmith.agent_utils.hssd_retrieval_server import HssdRetrievalClient
 from scenesmith.agent_utils.hssd_retrieval_server.dataclasses import (
     HssdRetrievalServerRequest,
 )
-from scenesmith.agent_utils.image_generation import (
-    AssetOperationType,
-    create_image_generator,
-)
+# Removed: was image_generation module - now handled by Claude subagents
 from scenesmith.agent_utils.materials_retrieval_server import MaterialsRetrievalClient
 from scenesmith.agent_utils.mesh_canonicalization import canonicalize_mesh
 from scenesmith.agent_utils.mesh_physics_analyzer import (
@@ -66,7 +64,7 @@ from scenesmith.agent_utils.thin_covering_generator import (
     generate_thin_covering_sdf,
     infer_thin_covering_shape,
 )
-from scenesmith.agent_utils.vlm_service import VLMService
+# Removed: was VLMService - now handled by Claude subagents
 from scenesmith.utils.logging import BaseLogger
 
 if TYPE_CHECKING:
@@ -74,6 +72,17 @@ if TYPE_CHECKING:
     from scenesmith.agent_utils.blender import BlenderServer
 
 console_logger = logging.getLogger(__name__)
+
+
+class AssetOperationType(Enum):
+    """Type of asset generation operation.
+
+    Moved here from deleted image_generation module.
+    """
+
+    INITIAL = "initial"
+    ADDITION = "addition"
+    REPLACEMENT = "replacement"
 
 
 @dataclass
@@ -203,7 +212,7 @@ class AssetManager:
     def __init__(
         self,
         logger: BaseLogger,
-        vlm_service: VLMService,
+        vlm_service: "Any",  # Removed: was VLMService - now handled by Claude subagents
         blender_server: "BlenderServer | None",
         collision_client: ConvexDecompositionClient | None,
         cfg: DictConfig,
@@ -264,10 +273,8 @@ class AssetManager:
         self.vlm_service = vlm_service
         self.blender_server = blender_server
         self.collision_client = collision_client
-        self.image_generator = create_image_generator(
-            backend=cfg.asset_manager.image_generation.backend,
-            config=cfg.asset_manager.image_generation,
-        )
+        # Removed: was create_image_generator() - now handled by Claude subagents
+        self.image_generator = None
 
         # Create agent-specific subdirectories for organization.
         generated_assets_dir = self.output_dir / "generated_assets" / agent_type.value

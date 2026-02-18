@@ -9,13 +9,12 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from agents import ToolOutputImage, ToolOutputText, function_tool
 from omegaconf import DictConfig
 
 from scenesmith.agent_utils.physics_tools import check_physics_violations
 from scenesmith.agent_utils.rendering_manager import RenderingManager
 from scenesmith.agent_utils.room import AgentType, ObjectType, RoomScene
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 if TYPE_CHECKING:
     from scenesmith.agent_utils.blender.server_manager import BlenderServer
@@ -61,8 +60,7 @@ class CeilingVisionTools:
     def _create_tool_closures(self) -> dict:
         """Create tool closures for vision operations."""
 
-        @function_tool
-        def observe_scene() -> list[ToolOutputImage | ToolOutputText]:
+        def observe_scene() -> list:
             """Observe the current scene state for ceiling placement.
 
             Renders an elevated perspective view of the room showing:
@@ -78,8 +76,7 @@ class CeilingVisionTools:
             """
             return self._observe_scene_impl()
 
-        @function_tool
-        def check_physics() -> list[ToolOutputText]:
+        def check_physics() -> list:
             """Check physics validity of current ceiling placements.
 
             Returns:
@@ -92,7 +89,7 @@ class CeilingVisionTools:
             "check_physics": check_physics,
         }
 
-    def _observe_scene_impl(self) -> list[ToolOutputImage | ToolOutputText]:
+    def _observe_scene_impl(self) -> list:
         """Implementation for scene observation.
 
         Renders an elevated perspective view showing ceiling and furniture context.
@@ -102,7 +99,7 @@ class CeilingVisionTools:
         """
         console_logger.info("Tool called: observe_scene (ceiling)")
 
-        outputs: list[ToolOutputImage | ToolOutputText] = []
+        outputs: list = []
 
         # Get all object IDs by type.
         all_furniture_ids = [
@@ -146,17 +143,15 @@ class CeilingVisionTools:
             console_logger.info(f"Rendered {len(images)} ceiling view image(s)")
 
         # Add summary message.
-        num_images = sum(1 for o in outputs if isinstance(o, ToolOutputImage))
+        num_images = sum(1 for o in outputs if isinstance(o, dict) and o.get("type") == "image")
         min_x, min_y, max_x, max_y = self.room_bounds
         room_width = max_x - min_x
         room_depth = max_y - min_y
         outputs.append(
-            ToolOutputText(
-                text=f"Ceiling observed from elevated perspective. "
+            {"type": "text", "text": f"Ceiling observed from elevated perspective. "
                 f"Room size: {room_width:.1f}m x {room_depth:.1f}m, "
                 f"ceiling height: {self.ceiling_height:.1f}m. "
-                f"{len(all_ceiling_object_ids)} ceiling objects placed."
-            )
+                f"{len(all_ceiling_object_ids)} ceiling objects placed."}
         )
 
         return outputs
@@ -172,12 +167,12 @@ class CeilingVisionTools:
             scene=self.scene, cfg=self.cfg, agent_type=AgentType.CEILING_MOUNTED
         )
 
-    def _collect_images(self, images_dir: Path) -> list[ToolOutputImage]:
+    def _collect_images(self, images_dir: Path) -> list:
         """Collect rendered images from directory."""
         outputs = []
         for img_path in sorted(images_dir.glob("*.png")):
             img_base64 = encode_image_to_base64(img_path)
             outputs.append(
-                ToolOutputImage(image_url=f"data:image/png;base64,{img_base64}")
+                {"type": "image", "image_url": f"data:image/png;base64,{img_base64}"}
             )
         return outputs

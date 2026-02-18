@@ -6,7 +6,7 @@ import tempfile
 import time
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from omegaconf import DictConfig
 
@@ -47,9 +47,9 @@ from scenesmith.agent_utils.thin_covering_generator import (
     create_rectangular_thin_covering_glb,
     infer_thin_covering_shape,
 )
-from scenesmith.agent_utils.vlm_service import VLMService
+# Removed: was VLMService - now handled by Claude subagents
 from scenesmith.prompts import AssetRouterPrompts, prompt_manager
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 if TYPE_CHECKING:
     from scenesmith.agent_utils.blender import BlenderServer
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from scenesmith.agent_utils.hssd_retrieval_server.dataclasses import (
         HssdRetrievalResult,
     )
-    from scenesmith.agent_utils.image_generation import BaseImageGenerator
+    # Removed: was BaseImageGenerator - now handled by Claude subagents
     from scenesmith.agent_utils.materials_retrieval_server import (
         MaterialsRetrievalClient,
     )
@@ -85,7 +85,7 @@ class AssetRouter:
     def __init__(
         self,
         agent_type: AgentType,
-        vlm_service: VLMService,
+        vlm_service: "Any",  # Removed: was VLMService - now handled by Claude subagents
         cfg: DictConfig,
         blender_server: "BlenderServer | None" = None,
     ) -> None:
@@ -93,7 +93,7 @@ class AssetRouter:
 
         Args:
             agent_type: Type of placement agent.
-            vlm_service: VLM service for analysis and validation.
+            vlm_service: VLM service for analysis and validation (legacy, may be None).
             cfg: Configuration with OpenAI and router settings.
             blender_server: Optional BlenderServer for thread-safe validation rendering.
                 When provided and running, validation uses HTTP requests to the server
@@ -411,7 +411,7 @@ class AssetRouter:
         self,
         item: AssetItem,
         geometry_client: "GeometryGenerationClient | None",
-        image_generator: "BaseImageGenerator | None",
+        image_generator: Any,
         images_dir: Path | None,
         geometry_dir: Path,
         debug_dir: Path,
@@ -820,7 +820,7 @@ class AssetRouter:
         item: AssetItem,
         max_retries: int,
         materials_client: "MaterialsRetrievalClient | None",
-        image_generator: "BaseImageGenerator | None",
+        image_generator: Any,
         geometry_dir: Path,
         debug_dir: Path,
         scene_id: str | None = None,
@@ -1007,7 +1007,7 @@ class AssetRouter:
     def _try_generated_thin_covering(
         self,
         item: AssetItem,
-        image_generator: "BaseImageGenerator | None",
+        image_generator: Any,
         width: float,
         second_dim: float,
         thickness: float,
@@ -1353,7 +1353,7 @@ class AssetRouter:
         geometry_client: "GeometryGenerationClient | None",
         hssd_client: "HssdRetrievalClient | None",
         objaverse_client: "ObjaverseRetrievalClient | None",
-        image_generator: "BaseImageGenerator | None",
+        image_generator: Any,
         images_dir: Path | None,
         geometry_dir: Path,
         debug_dir: Path,
@@ -1645,7 +1645,7 @@ class AssetRouter:
         asset_source: str,
         attempt: int,
         geometry_client: "GeometryGenerationClient | None",
-        image_generator: "BaseImageGenerator | None",
+        image_generator: Any,
         images_dir: Path | None,
         geometry_dir: Path,
         debug_dir: Path,
@@ -1734,7 +1734,7 @@ class AssetRouter:
         self,
         item: AssetItem,
         geometry_client: "GeometryGenerationClient",
-        image_generator: "BaseImageGenerator",
+        image_generator: Any,
         images_dir: Path,
         geometry_dir: Path,
         debug_dir: Path,

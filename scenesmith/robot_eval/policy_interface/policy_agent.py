@@ -10,9 +10,8 @@ Single agent that handles the entire task → object bindings pipeline:
 import logging
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
-from agents import Agent, Runner, RunResult
 from omegaconf import DictConfig
 from pydantic import BaseModel, Field
 
@@ -93,37 +92,20 @@ class PolicyInterfaceAgent:
     blender_server: "BlenderServer | None" = None
     """Optional Blender server for vision tools. If None, only state tools available."""
 
-    _agent: Agent | None = field(default=None, init=False)
+    _agent: Any | None = field(default=None, init=False)
     """Lazily initialized agent."""
 
-    def _create_agent(self) -> Agent:
-        """Create the policy interface agent with tools and prompt."""
-        # State tools (always available).
-        state_tools = create_state_tools(self.scene)
+    def _create_agent(self) -> Any:
+        """Create the policy interface agent with tools and prompt.
 
-        # Vision tools (if BlenderServer provided).
-        if self.blender_server is not None:
-            vision_tools = create_vision_tools(
-                scene=self.scene, blender_server=self.blender_server
-            )
-            all_tools = state_tools + vision_tools
-        else:
-            console_logger.warning("No BlenderServer provided - vision tools disabled")
-            all_tools = state_tools
-
-        prompt = prompt_registry.get_prompt(RobotEvalPrompts.POLICY_AGENT)
-
-        # Create agent with structured output.
-        return Agent(
-            name="policy_interface",
-            model=self.cfg.openai.model,
-            tools=all_tools,
-            instructions=prompt,
-            output_type=PolicyInterfaceOutput,
-        )
+        Returns:
+            None. Now handled by Claude Code subagents via MCP.
+        """
+        # Now handled by Claude Code subagents via MCP
+        return None
 
     @property
-    def agent(self) -> Agent:
+    def agent(self) -> Any:
         """Get or create the policy interface agent."""
         if self._agent is None:
             self._agent = self._create_agent()
@@ -143,13 +125,5 @@ class PolicyInterfaceAgent:
         """
         console_logger.info(f"Resolving task: {task_description}")
 
-        result: RunResult = await Runner.run(
-            starting_agent=self.agent, input=task_description, max_turns=max_turns
-        )
-        output = result.final_output_as(PolicyInterfaceOutput)
-
-        console_logger.info(
-            f"Resolved {len(output.valid_bindings)} bindings for "
-            f"{output.goal_predicate}({output.target_category}, {output.reference_category})"
-        )
-        return output
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")

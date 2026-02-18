@@ -17,6 +17,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import numpy as np
 import trimesh
@@ -35,7 +36,6 @@ from scenesmith.agent_utils.mesh_utils import (
 )
 from scenesmith.agent_utils.room import ObjectType
 from scenesmith.agent_utils.sdf_generator import generate_drake_sdf
-from scenesmith.agent_utils.vlm_service import VLMService
 from tests.integration.common import has_openai_key
 
 
@@ -234,8 +234,8 @@ class TestMeshProcessingPipeline(unittest.TestCase):
 
         self.config = OmegaConf.merge(base_config, test_overrides)
 
-        # Create VLM service for mesh analysis.
-        self.vlm_service = VLMService()
+        # Create mock VLM service for mesh analysis (module was removed).
+        self.vlm_service = MagicMock()
 
     def tearDown(self):
         """Clean up temporary directory and servers."""

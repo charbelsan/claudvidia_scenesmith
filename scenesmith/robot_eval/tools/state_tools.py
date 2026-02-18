@@ -10,7 +10,6 @@ import logging
 
 import numpy as np
 
-from agents import FunctionTool, function_tool
 from scipy.spatial.transform import Rotation
 
 from scenesmith.robot_eval.dmd_scene import DMDScene
@@ -25,7 +24,7 @@ from scenesmith.robot_eval.tools.response_dataclasses import (
 console_logger = logging.getLogger(__name__)
 
 
-def create_state_tools(scene: DMDScene) -> list[FunctionTool]:
+def create_state_tools(scene: DMDScene) -> list:
     """Create state tools for agents.
 
     Creates closure-based tools that capture the scene state, providing
@@ -36,10 +35,9 @@ def create_state_tools(scene: DMDScene) -> list[FunctionTool]:
         scene: DMDScene with finalized Drake plant and scene_state metadata.
 
     Returns:
-        List of FunctionTool objects for the agent.
+        List of tool objects for the agent.
     """
 
-    @function_tool
     def list_objects() -> str:
         """List all objects in the scene with their positions.
 
@@ -67,7 +65,6 @@ def create_state_tools(scene: DMDScene) -> list[FunctionTool]:
             )
         return json.dumps(objects, indent=2)
 
-    @function_tool
     def get_object_info(object_id: str) -> str:
         """Get detailed information about a specific object.
 
@@ -128,7 +125,6 @@ def create_state_tools(scene: DMDScene) -> list[FunctionTool]:
         except KeyError:
             return json.dumps({"error": f"Object '{object_id}' not found in scene"})
 
-    @function_tool
     def get_distance(object_a: str, object_b: str) -> str:
         """Get surface-to-surface distance between two objects.
 
@@ -190,7 +186,6 @@ def create_state_tools(scene: DMDScene) -> list[FunctionTool]:
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    @function_tool
     def get_spatial_relation(object_a: str, object_b: str) -> str:
         """Get spatial relationship between two objects using surface distances.
 
@@ -269,7 +264,6 @@ def create_state_tools(scene: DMDScene) -> list[FunctionTool]:
         except KeyError as e:
             return json.dumps({"error": f"Object not found: {e}"})
 
-    @function_tool
     def get_support(target: str, surface: str) -> str:
         """Check if target object is supported by a surface.
 

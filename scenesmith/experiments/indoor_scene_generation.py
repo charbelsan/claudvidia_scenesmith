@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import csv
 import faulthandler
 import json
@@ -11,19 +12,23 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
-from typing import Callable
+from typing import Any, Callable
 
-from agents import custom_span, trace
 from omegaconf import DictConfig, OmegaConf
 
-from scenesmith.agent_utils.articulated_retrieval_server import (
-    ArticulatedRetrievalServer,
-)
-from scenesmith.agent_utils.geometry_generation_server import GeometryGenerationServer
 from scenesmith.agent_utils.house import HouseLayout, HouseScene, RoomGeometry
-from scenesmith.agent_utils.hssd_retrieval_server import HssdRetrievalServer
-from scenesmith.agent_utils.materials_retrieval_server import MaterialsRetrievalServer
-from scenesmith.agent_utils.objaverse_retrieval_server import ObjaverseRetrievalServer
+
+
+def custom_span(name: str = "", **kwargs) -> contextlib.nullcontext:
+    """No-op replacement for agents SDK custom_span. Now handled by Claude Code."""
+    return contextlib.nullcontext()
+
+
+def trace(workflow_name: str = "", **kwargs) -> contextlib.nullcontext:
+    """No-op replacement for agents SDK trace. Now handled by Claude Code."""
+    return contextlib.nullcontext()
+
+
 from scenesmith.agent_utils.physical_feasibility import (
     apply_physical_feasibility_postprocessing,
 )
@@ -1267,11 +1272,11 @@ class IndoorSceneGenerationExperiment(BaseExperiment):
 
     def __init__(self, cfg: DictConfig):
         super().__init__(cfg=cfg)
-        self.geometry_server: GeometryGenerationServer | None = None
-        self.hssd_server: HssdRetrievalServer | None = None
-        self.objaverse_server: ObjaverseRetrievalServer | None = None
-        self.articulated_server: ArticulatedRetrievalServer | None = None
-        self.materials_server: MaterialsRetrievalServer | None = None
+        self.geometry_server: Any | None = None
+        self.hssd_server: Any | None = None
+        self.objaverse_server: Any | None = None
+        self.articulated_server: Any | None = None
+        self.materials_server: Any | None = None
 
     def __del__(self):
         """Ensure servers are stopped when experiment is destroyed."""
@@ -1342,6 +1347,7 @@ class IndoorSceneGenerationExperiment(BaseExperiment):
             f"{server_config.host}:{server_config.port}"
         )
 
+        from scenesmith.agent_utils.geometry_generation_server import GeometryGenerationServer
         self.geometry_server = GeometryGenerationServer(
             host=server_config.host,
             port=server_config.port,
@@ -1398,6 +1404,7 @@ class IndoorSceneGenerationExperiment(BaseExperiment):
             f"(CLIP device: {retrieval_device or 'default'})"
         )
 
+        from scenesmith.agent_utils.hssd_retrieval_server import HssdRetrievalServer
         self.hssd_server = HssdRetrievalServer(
             host=server_config.host,
             port=server_config.port,
@@ -1457,6 +1464,7 @@ class IndoorSceneGenerationExperiment(BaseExperiment):
             f"(CLIP device: {retrieval_device or 'default'})"
         )
 
+        from scenesmith.agent_utils.objaverse_retrieval_server import ObjaverseRetrievalServer
         self.objaverse_server = ObjaverseRetrievalServer(
             host=server_config.host,
             port=server_config.port,
@@ -1517,6 +1525,7 @@ class IndoorSceneGenerationExperiment(BaseExperiment):
             f"(CLIP device: {retrieval_device or 'default'})"
         )
 
+        from scenesmith.agent_utils.articulated_retrieval_server import ArticulatedRetrievalServer
         self.articulated_server = ArticulatedRetrievalServer(
             host=server_config.host,
             port=server_config.port,
@@ -1550,6 +1559,7 @@ class IndoorSceneGenerationExperiment(BaseExperiment):
             f"(CLIP device: {retrieval_device or 'default'})"
         )
 
+        from scenesmith.agent_utils.materials_retrieval_server import MaterialsRetrievalServer
         self.materials_server = MaterialsRetrievalServer(
             host=server_config.host,
             port=server_config.port,

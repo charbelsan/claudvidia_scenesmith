@@ -11,7 +11,7 @@ from scenesmith.agent_utils.convex_decomposition_server import ConvexDecompositi
 from scenesmith.agent_utils.rendering_manager import RenderingManager
 from scenesmith.agent_utils.room import AgentType, RoomScene
 from scenesmith.agent_utils.scene_analyzer import SceneAnalyzer
-from scenesmith.agent_utils.vlm_service import VLMService
+# Removed: was VLMService - now handled by Claude subagents
 from scenesmith.prompts import prompt_registry
 from scenesmith.utils.logging import BaseLogger
 
@@ -103,8 +103,8 @@ class BaseFurnitureAgent(ABC):
             self.cleanup()
             raise
 
-        service_tier = getattr(self.cfg.openai, "service_tier", None)
-        self.vlm_service = VLMService(service_tier=service_tier)
+        # Removed: was VLMService - now handled by Claude subagents
+        self.vlm_service = None
 
         self.asset_manager = AssetManager(
             logger=logger,

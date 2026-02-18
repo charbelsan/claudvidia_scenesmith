@@ -2,7 +2,7 @@
 Vision tools for scene observation and dynamic visual feedback.
 
 This module provides capabilities for rendering scenes and returning images
-directly via ToolOutputImage. Images returned this way are stored in the session
+directly. Images returned this way are stored in the session
 and persist across API calls, giving the agent visual memory.
 """
 
@@ -10,7 +10,6 @@ import logging
 
 from typing import TYPE_CHECKING, Any
 
-from agents import ToolOutputImage, ToolOutputText, function_tool
 from omegaconf import DictConfig
 
 from scenesmith.agent_utils.physics_tools import check_physics_violations
@@ -20,7 +19,7 @@ from scenesmith.agent_utils.reachability import (
 )
 from scenesmith.agent_utils.rendering_manager import RenderingManager
 from scenesmith.agent_utils.room import AgentType, RoomScene
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 if TYPE_CHECKING:
     from scenesmith.agent_utils.blender.server_manager import BlenderServer
@@ -31,9 +30,9 @@ console_logger = logging.getLogger(__name__)
 class VisionTools:
     """Tools for scene observation and image persistence.
 
-    Provides capabilities for rendering scenes and returning images directly
-    via ToolOutputImage. Images returned this way are stored in the session
-    and persist across API calls.
+    Provides capabilities for rendering scenes and returning images directly.
+    Images returned this way are stored in the session and persist across
+    API calls.
     """
 
     def __init__(
@@ -79,8 +78,7 @@ class VisionTools:
             Dictionary mapping tool names to tool functions.
         """
 
-        @function_tool
-        async def observe_scene() -> list[ToolOutputImage | ToolOutputText]:
+        async def observe_scene() -> list:
             """Take visual snapshots of the current furniture arrangement.
 
             After calling this, you'll see images of the room from multiple angles
@@ -93,7 +91,6 @@ class VisionTools:
             """
             return self._observe_scene_impl()
 
-        @function_tool
         async def check_physics() -> str:
             """Check for physics violations (collisions) in the current scene.
 
@@ -106,7 +103,6 @@ class VisionTools:
             """
             return self._check_physics_impl()
 
-        @function_tool
         async def check_reachability() -> str:
             """Check if all areas of the room are reachable.
 
@@ -129,10 +125,10 @@ class VisionTools:
             "check_reachability": check_reachability,
         }
 
-    def _observe_scene_impl(self) -> list[ToolOutputImage | ToolOutputText]:
+    def _observe_scene_impl(self) -> list:
         """Implementation for scene observation.
 
-        Returns images directly via ToolOutputImage so they persist in the session.
+        Returns images directly so they persist in the session.
 
         Returns:
             List of images plus a confirmation message.
@@ -148,28 +144,26 @@ class VisionTools:
         if not images_dir or not images_dir.exists():
             console_logger.error("No renders generated for scene observation")
             return [
-                ToolOutputText(text="Unable to observe scene - no renders available.")
+                {"type": "text", "text": "Unable to observe scene - no renders available."}
             ]
 
         # Collect images and return them directly.
-        outputs: list[ToolOutputImage | ToolOutputText] = []
+        outputs: list = []
 
         for img_path in sorted(images_dir.glob("*.png")):
             img_base64 = encode_image_to_base64(img_path)
             outputs.append(
-                ToolOutputImage(image_url=f"data:image/png;base64,{img_base64}")
+                {"type": "image", "image_url": f"data:image/png;base64,{img_base64}"}
             )
 
         # Add confirmation message.
         num_images = len(outputs)
         outputs.append(
-            ToolOutputText(
-                text=f"Scene observed from {num_images} viewpoints. "
-                "Visual feedback is now available for analysis."
-            )
+            {"type": "text", "text": f"Scene observed from {num_images} viewpoints. "
+                "Visual feedback is now available for analysis."}
         )
 
-        console_logger.info(f"Returning {num_images} images via ToolOutputImage")
+        console_logger.info(f"Returning {num_images} images")
         return outputs
 
     def _check_physics_impl(self) -> str:

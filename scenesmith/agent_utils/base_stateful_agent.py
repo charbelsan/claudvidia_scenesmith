@@ -16,24 +16,10 @@ from typing import Any
 
 import yaml
 
-from agents import (
-    Agent,
-    FunctionTool,
-    ModelSettings,
-    RunConfig,
-    Runner,
-    RunResult,
-    SQLiteSession,
-    function_tool,
-)
-from agents.memory.session import Session
 from omegaconf import DictConfig
-from openai import Timeout
-from openai.types.shared import Reasoning
 
 from scenesmith.agent_utils.action_logger import log_scene_action
 from scenesmith.agent_utils.checkpoint_state import initialize_checkpoint_attributes
-from scenesmith.agent_utils.intra_turn_image_filter import IntraTurnImageFilter
 from scenesmith.agent_utils.physics_tools import check_physics_violations
 from scenesmith.agent_utils.placement_noise import PlacementNoiseMode
 from scenesmith.agent_utils.room import AgentType
@@ -45,46 +31,11 @@ from scenesmith.agent_utils.scoring import (
     log_critique_scores,
     scores_to_dict,
 )
-from scenesmith.agent_utils.turn_trimming_session import TurnTrimmingSession
 from scenesmith.prompts import prompt_registry
 from scenesmith.utils.logging import BaseLogger
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 console_logger = logging.getLogger(__name__)
-
-
-def log_agent_usage(result: RunResult, agent_name: str) -> None:
-    """Log token usage from an agent run.
-
-    Args:
-        result: The RunResult from Runner.run().
-        agent_name: Human-readable name for the agent (e.g., "DESIGNER", "CRITIC").
-    """
-    usage = result.context_wrapper.usage
-    cached = (
-        usage.input_tokens_details.cached_tokens if usage.input_tokens_details else 0
-    )
-    reasoning = (
-        usage.output_tokens_details.reasoning_tokens
-        if usage.output_tokens_details
-        else 0
-    )
-    # Get final context size from last request (context only grows during a run).
-    final_context = (
-        usage.request_usage_entries[-1].input_tokens
-        if usage.request_usage_entries
-        else usage.input_tokens
-    )
-    console_logger.info(
-        f"[{agent_name}] Token usage: "
-        f"input={usage.input_tokens:,}, "
-        f"output={usage.output_tokens:,}, "
-        f"reasoning={reasoning:,}, "
-        f"cached={cached:,}, "
-        f"total={usage.total_tokens:,}, "
-        f"requests={usage.requests}, "
-        f"final_context_length={final_context:,}"
-    )
 
 
 class BaseStatefulAgent(ABC):
@@ -165,76 +116,10 @@ class BaseStatefulAgent(ABC):
         # Initialize checkpoint state (N-1 and N pattern for rollback).
         initialize_checkpoint_attributes(target=self)
 
-    def _get_model_settings(
-        self,
-        settings_key: str | None = None,
-        tool_choice: str | None = None,
-        parallel_tool_calls: bool | None = None,
-    ) -> ModelSettings | None:
-        """Create ModelSettings with timeout, reasoning effort, verbosity, and tool.
-
-        Args:
-            settings_key: Key in cfg.openai.reasoning_effort and cfg.openai.verbosity
-                for this agent (e.g., "designer", "critic", "planner"). If None,
-                no reasoning effort or verbosity is set.
-            tool_choice: Tool name to force as first call (e.g., "observe_scene").
-                Resets after first tool call by default to prevent infinite loops.
-            parallel_tool_calls: Whether to allow parallel tool calls. Set to False
-                for planner agents to prevent race conditions on shared sessions.
-
-        Returns:
-            ModelSettings with timeout, reasoning, verbosity, and tool_choice if
-            configured, None otherwise.
-        """
-        kwargs: dict = {}
-        extra_args: dict = {}
-
-        # Add timeout if configured (api_timeout is optional).
-        if hasattr(self.cfg, "api_timeout"):
-            timeout_cfg = self.cfg.api_timeout
-            timeout = Timeout(
-                connect=timeout_cfg.connect,
-                read=timeout_cfg.read,
-                write=timeout_cfg.write,
-                pool=timeout_cfg.pool,
-            )
-            extra_args["timeout"] = timeout
-
-        # Add service_tier if configured (non-null/non-empty).
-        service_tier = getattr(self.cfg.openai, "service_tier", None)
-        if service_tier:
-            extra_args["service_tier"] = service_tier
-
-        if extra_args:
-            kwargs["extra_args"] = extra_args
-
-        # Add reasoning effort and verbosity if key is provided.
-        if settings_key:
-            reasoning_cfg = self.cfg.openai.reasoning_effort
-            effort = getattr(reasoning_cfg, settings_key)
-            kwargs["reasoning"] = Reasoning(effort=effort)
-
-            verbosity_cfg = self.cfg.openai.verbosity
-            verbosity = getattr(verbosity_cfg, settings_key)
-            kwargs["verbosity"] = verbosity
-
-        # Add tool_choice to force specific tool call first.
-        if tool_choice:
-            kwargs["tool_choice"] = tool_choice
-
-        # Add parallel_tool_calls setting if specified.
-        if parallel_tool_calls is not None:
-            kwargs["parallel_tool_calls"] = parallel_tool_calls
-
-        return ModelSettings(**kwargs) if kwargs else None
-
     def _create_designer_agent(
-        self, tools: list[FunctionTool], prompt_enum: Any, **prompt_kwargs: Any
-    ) -> Agent:
+        self, tools: list, prompt_enum: Any, **prompt_kwargs: Any
+    ) -> Any:
         """Create designer agent with tools and domain-specific prompt.
-
-        This method provides the shared pattern for designer agent creation,
-        allowing subclasses to specify the prompt enum and context.
 
         Args:
             tools: Tools to provide to the designer.
@@ -242,31 +127,19 @@ class BaseStatefulAgent(ABC):
             **prompt_kwargs: Additional kwargs for prompt template rendering.
 
         Returns:
-            Configured designer agent.
+            None. Now handled by Claude Code subagents.
         """
-        designer_config = self.cfg.agents.designer_agent
-        return Agent(
-            name=designer_config.name,
-            model=self.cfg.openai.model,
-            tools=tools,
-            instructions=self.prompt_registry.get_prompt(
-                prompt_enum=prompt_enum,
-                **prompt_kwargs,
-            ),
-            model_settings=self._get_model_settings(settings_key="designer"),
-        )
+        # Now handled by Claude Code subagents
+        return None
 
     def _create_critic_agent(
         self,
-        tools: list[FunctionTool],
+        tools: list,
         prompt_enum: Any,
-        output_type: type[CritiqueWithScores],
+        output_type: type[CritiqueWithScores] | None = None,
         **prompt_kwargs: Any,
-    ) -> Agent:
+    ) -> Any:
         """Create critic agent with structured output.
-
-        This method provides the shared pattern for critic agent creation,
-        allowing subclasses to specify the prompt enum and context.
 
         Args:
             tools: Tools to provide to the critic.
@@ -275,31 +148,15 @@ class BaseStatefulAgent(ABC):
             **prompt_kwargs: Additional kwargs for prompt template rendering.
 
         Returns:
-            Configured critic agent with domain-specific CritiqueWithScores type.
+            None. Now handled by Claude Code subagents.
         """
-        critic_config = self.cfg.agents.critic_agent
-        return Agent(
-            name=critic_config.name,
-            model=self.cfg.openai.model,
-            tools=tools,
-            instructions=self.prompt_registry.get_prompt(
-                prompt_enum=prompt_enum,
-                **prompt_kwargs,
-            ),
-            output_type=output_type,
-            # Force observe_scene tool call first to ensure visual context.
-            model_settings=self._get_model_settings(
-                settings_key="critic", tool_choice="observe_scene"
-            ),
-        )
+        # Now handled by Claude Code subagents
+        return None
 
     def _create_planner_agent(
-        self, tools: list[FunctionTool], prompt_enum: Any, **prompt_kwargs: Any
-    ) -> Agent:
+        self, tools: list, prompt_enum: Any, **prompt_kwargs: Any
+    ) -> Any:
         """Create planner agent for workflow coordination.
-
-        This method provides the shared pattern for planner agent creation,
-        allowing subclasses to specify the prompt enum and context.
 
         Args:
             tools: Tools to provide to the planner.
@@ -307,85 +164,31 @@ class BaseStatefulAgent(ABC):
             **prompt_kwargs: Additional kwargs for prompt template rendering.
 
         Returns:
-            Configured planner agent.
+            None. Now handled by Claude Code subagents.
         """
-        planner_config = self.cfg.agents.planner_agent
-        return Agent(
-            name=planner_config.name,
-            model=self.cfg.openai.model,
-            tools=tools,
-            instructions=self.prompt_registry.get_prompt(
-                prompt_enum=prompt_enum,
-                **prompt_kwargs,
-            ),
-            # Disable parallel tool calls to prevent race conditions on shared
-            # sessions (designer_session, critic_session). When the model returns
-            # multiple tool calls in one response, they would otherwise run
-            # concurrently and cause SQLite locking issues.
-            model_settings=self._get_model_settings(
-                settings_key="planner", parallel_tool_calls=False
-            ),
-        )
+        # Now handled by Claude Code subagents
+        return None
 
-    def _create_sessions(self, session_prefix: str = "") -> tuple[Session, Session]:
+    def _create_sessions(self, session_prefix: str = "") -> tuple[Any, Any]:
         """Create designer and critic sessions for persistent conversation history.
-
-        Sessions are optionally wrapped with TurnTrimmingSession for memory
-        management if session_memory is enabled in config.
 
         Args:
             session_prefix: Optional prefix for session IDs (e.g., furniture ID).
 
         Returns:
-            Tuple of (designer_session, critic_session).
+            Tuple of (None, None). Now handled by Claude Code subagents via MCP.
         """
-        designer_id = f"{session_prefix}designer" if session_prefix else "designer"
-        critic_id = f"{session_prefix}critic" if session_prefix else "critic"
+        # Now handled by Claude Code subagents via MCP
+        return (None, None)
 
-        designer_sqlite = SQLiteSession(
-            session_id=designer_id,
-            db_path=self.logger.output_dir / f"{designer_id}.db",
-        )
-        critic_sqlite = SQLiteSession(
-            session_id=critic_id,
-            db_path=self.logger.output_dir / f"{critic_id}.db",
-        )
-
-        # Wrap with memory management if configured.
-        memory_cfg = self.cfg.session_memory
-        if memory_cfg and memory_cfg.enabled:
-            console_logger.info(
-                f"Enabling turn-trimming session (keep_last_n_turns="
-                f"{memory_cfg.keep_last_n_turns}, summarization="
-                f"{memory_cfg.enable_summarization})"
-            )
-            designer_session: Session = TurnTrimmingSession(
-                wrapped_session=designer_sqlite, cfg=self.cfg
-            )
-            critic_session: Session = TurnTrimmingSession(
-                wrapped_session=critic_sqlite, cfg=self.cfg
-            )
-        else:
-            designer_session = designer_sqlite
-            critic_session = critic_sqlite
-
-        return designer_session, critic_session
-
-    def _create_run_config(self) -> RunConfig:
-        """Create RunConfig with intra-turn image filter if enabled.
-
-        The filter strips images from older observe_scene outputs within a turn,
-        keeping only the last N observations with images intact. This reduces
-        token usage when agents call observe_scene multiple times within a turn.
+    def _create_run_config(self) -> Any:
+        """Create run configuration.
 
         Returns:
-            RunConfig with call_model_input_filter set if enabled, empty otherwise.
+            None. Now handled by Claude Code subagents via MCP.
         """
-        intra_cfg = self.cfg.session_memory.intra_turn_observation_stripping
-        if intra_cfg.enabled:
-            return RunConfig(call_model_input_filter=IntraTurnImageFilter(cfg=self.cfg))
-
-        return RunConfig()
+        # Now handled by Claude Code subagents via MCP
+        return None
 
     def _should_reset_to_checkpoint(
         self,
@@ -547,14 +350,13 @@ class BaseStatefulAgent(ABC):
                     f"No render images found in {render_dir_to_copy}"
                 )
 
-    def _create_reset_checkpoint_tool(self) -> FunctionTool:
+    def _create_reset_checkpoint_tool(self) -> Any:
         """Create tool for resetting scene to previous checkpoint.
 
         Returns:
-            FunctionTool that allows agents to reset to previous checkpoint.
+            Callable that allows agents to reset to previous checkpoint.
         """
 
-        @function_tool
         async def reset_scene_to_checkpoint(reason: str) -> str:
             """Reset scene to previous iteration state when changes made it worse.
 
@@ -604,14 +406,13 @@ class BaseStatefulAgent(ABC):
 
         return reset_scene_to_checkpoint
 
-    def _create_placement_style_tool(self) -> FunctionTool:
+    def _create_placement_style_tool(self) -> Any:
         """Create tool for selecting placement style (natural vs perfect).
 
         Returns:
-            FunctionTool that allows agents to select placement style.
+            Callable that allows agents to select placement style.
         """
 
-        @function_tool
         def select_placement_style(style: str) -> str:
             """Select placement style based on scene prompt analysis.
 
@@ -650,7 +451,7 @@ class BaseStatefulAgent(ABC):
 
         return select_placement_style
 
-    def _create_planner_tools(self) -> list[FunctionTool]:
+    def _create_planner_tools(self) -> list:
         """Create planner tools for the design workflow.
 
         Returns tools that the planner uses to coordinate designer and critic:
@@ -661,10 +462,9 @@ class BaseStatefulAgent(ABC):
         - reset_scene_to_checkpoint: Reset to last checkpoint state
 
         Returns:
-            List of function tools for planner agent.
+            List of callable tools for planner agent.
         """
 
-        @function_tool
         async def request_initial_design() -> str:
             """Request the designer to create the initial design.
 
@@ -676,7 +476,6 @@ class BaseStatefulAgent(ABC):
             """
             return await self._request_initial_design_impl()
 
-        @function_tool
         async def request_critique() -> str:
             """Request the critic to evaluate the current design.
 
@@ -688,7 +487,6 @@ class BaseStatefulAgent(ABC):
             """
             return await self._request_critique_impl()
 
-        @function_tool
         async def request_design_change(instruction: str) -> str:
             """Request the designer to address specific issues.
 
@@ -704,7 +502,7 @@ class BaseStatefulAgent(ABC):
             """
             return await self._request_design_change_impl(instruction)
 
-        tools: list[FunctionTool] = [request_initial_design]
+        tools: list = [request_initial_design]
 
         # Only add critique-related tools if critique rounds are enabled.
         # This prevents the planner from accidentally calling critique tools
@@ -776,6 +574,10 @@ class BaseStatefulAgent(ABC):
             agent_type=self.agent_type,
         )
 
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
+
+        # The code below is preserved for reference but unreachable.
         # Critic evaluates with physics context. It will call observe_scene to
         # render and get visual context (images persist in session via ToolOutputImage).
         prompt_enum = self._get_critique_prompt_enum()
@@ -789,17 +591,8 @@ class BaseStatefulAgent(ABC):
             placement_style=self.placement_style,
             **extra_kwargs,
         )
-        result = await Runner.run(
-            starting_agent=self.critic,
-            input=critique_instruction,
-            session=self.critic_session,
-            max_turns=self.cfg.agents.critic_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="CRITIC")
 
-        # Parse structured output.
-        response = result.final_output_as(CritiqueWithScores)
+        response = None  # type: ignore[assignment]
 
         # Log critique text and scores to console.
         log_agent_response(response=response.critique, agent_name="CRITIC")
@@ -886,22 +679,8 @@ class BaseStatefulAgent(ABC):
             instruction=instruction,
         )
 
-        # Designer run with critique-based instruction.
-        result = await Runner.run(
-            starting_agent=self.designer,
-            input=full_instruction,
-            session=self.designer_session,
-            max_turns=self.cfg.agents.designer_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="DESIGNER (CHANGE)")
-
-        if result.final_output:
-            log_agent_response(
-                response=result.final_output, agent_name="DESIGNER (CHANGE)"
-            )
-
-        return result.final_output
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
     @abstractmethod
     def _get_initial_design_prompt_enum(self) -> Any:
@@ -982,19 +761,5 @@ class BaseStatefulAgent(ABC):
         # Build input (may include context image if enabled).
         input_message = self._build_initial_design_input(instruction)
 
-        # Designer runs with initial design instruction.
-        result = await Runner.run(
-            starting_agent=self.designer,
-            input=input_message,
-            session=self.designer_session,
-            max_turns=self.cfg.agents.designer_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="DESIGNER (INITIAL)")
-
-        if result.final_output:
-            log_agent_response(
-                response=result.final_output, agent_name="DESIGNER (INITIAL)"
-            )
-
-        return result.final_output
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")

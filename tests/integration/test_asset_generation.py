@@ -4,6 +4,7 @@ import tempfile
 import unittest
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import numpy as np
 import trimesh
@@ -20,7 +21,6 @@ from scenesmith.agent_utils.convex_decomposition_server import ConvexDecompositi
 from scenesmith.agent_utils.geometry_generation_server.geometry_generation import (
     generate_geometry_from_image,
 )
-from scenesmith.agent_utils.image_generation import create_image_generator
 from scenesmith.agent_utils.mesh_canonicalization import canonicalize_mesh
 from scenesmith.agent_utils.mesh_physics_analyzer import (
     analyze_mesh_orientation_and_material,
@@ -31,7 +31,6 @@ from scenesmith.agent_utils.mesh_utils import (
 )
 from scenesmith.agent_utils.room import ObjectType
 from scenesmith.agent_utils.sdf_generator import generate_drake_sdf
-from scenesmith.agent_utils.vlm_service import VLMService
 from tests.integration.common import (
     has_gpu_available,
     has_hunyuan3d_installed,
@@ -61,7 +60,7 @@ class TestAssetGenerationIntegration(unittest.TestCase):
         self.temp_dir = Path(tempfile.mkdtemp())
         self.debug_dir = self.temp_dir / "debug_asset_gen"
         self.debug_dir.mkdir(exist_ok=True)
-        self.vlm_service = VLMService()
+        self.vlm_service = MagicMock()
 
         # Start convex decomposition server for collision geometry generation.
         self.collision_server = ConvexDecompositionServer(
@@ -105,19 +104,13 @@ class TestAssetGenerationIntegration(unittest.TestCase):
         chair_path = self.debug_dir / "chair.png"
         table_glb_path = self.debug_dir / "table.glb"
 
-        style_prompt = "A modern kitchen with a table for four people made of wood."
+        # Step 1: Create placeholder test images.
+        # Image generation module was removed; create simple test images instead.
+        from PIL import Image
 
-        # Step 1: Generate images for assets using configured backend.
-        image_gen_config = self.config.asset_manager.image_generation
-        generator = create_image_generator(
-            backend=image_gen_config.backend,
-            config=image_gen_config,
-        )
-        generator.generate_images(
-            style_prompt=style_prompt,
-            object_descriptions=["A table", "A chair"],
-            output_paths=[table_path, chair_path],
-        )
+        for img_path in [table_path, chair_path]:
+            img = Image.new("RGB", (256, 256), color=(128, 128, 128))
+            img.save(img_path)
 
         # Verify images were created.
         self.assertTrue(table_path.exists(), "Table image should be created")

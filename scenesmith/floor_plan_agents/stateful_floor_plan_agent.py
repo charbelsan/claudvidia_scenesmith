@@ -17,15 +17,11 @@ import numpy as np
 import trimesh
 import yaml
 
-from agents import Agent, FunctionTool, Runner, RunResult
 from omegaconf import DictConfig
 from pydrake.all import RigidTransform
 
 from scenesmith.agent_utils.action_logger import log_scene_action
-from scenesmith.agent_utils.base_stateful_agent import (
-    BaseStatefulAgent,
-    log_agent_usage,
-)
+from scenesmith.agent_utils.base_stateful_agent import BaseStatefulAgent
 from scenesmith.agent_utils.blender import BlenderServer
 from scenesmith.agent_utils.clearance_zones import compute_openings_data
 from scenesmith.agent_utils.house import (
@@ -168,7 +164,7 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
         # Call parent cleanup.
         BaseFloorPlanAgent.cleanup(self)
 
-    def _create_designer_tools(self) -> list[FunctionTool]:
+    def _create_designer_tools(self) -> list:
         """Create tools for the designer agent.
 
         Returns:
@@ -199,7 +195,7 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
             + list(workflow_tools.tools.values())
         )
 
-    def _create_critic_tools(self) -> list[FunctionTool]:
+    def _create_critic_tools(self) -> list:
         """Create tools for the critic agent.
 
         Critic needs:
@@ -229,7 +225,7 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
 
         return list(vision_tools.tools.values()) + [floor_plan_tools.tools["validate"]]
 
-    def _create_designer_agent(self, tools: list[FunctionTool]) -> Agent:
+    def _create_designer_agent(self, tools: list) -> Any:
         """Create the designer agent.
 
         Args:
@@ -245,7 +241,7 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
             house_prompt=self.house_prompt,
         )
 
-    def _create_critic_agent(self, tools: list[FunctionTool]) -> Agent:
+    def _create_critic_agent(self, tools: list) -> Any:
         """Create the critic agent.
 
         Args:
@@ -262,7 +258,7 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
             house_prompt=self.house_prompt,
         )
 
-    def _create_planner_agent(self, tools: list[FunctionTool]) -> Agent:
+    def _create_planner_agent(self, tools: list) -> Any:
         """Create the planner agent.
 
         Args:
@@ -350,20 +346,12 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
             prompt_enum=FloorPlanAgentPrompts.CRITIC_RUNNER_INSTRUCTION,
         )
 
-        # Run critic.
-        # Critic will call observe_scene, render_ascii, and validate tools.
-        result = await Runner.run(
-            starting_agent=self.critic,
-            input=critique_instruction,
-            session=self.critic_session,
-            max_turns=self.cfg.agents.critic_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="CRITIC (FLOOR PLAN)")
-        vision_tools = self._get_vision_tools()
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
-        # Parse structured output.
-        response = result.final_output_as(FloorPlanCritiqueWithScores)
+        # The code below is preserved for reference but unreachable.
+        vision_tools = self._get_vision_tools()
+        response = None  # type: ignore[assignment]
 
         # Log critique.
         log_agent_response(response=response.critique, agent_name="CRITIC")
@@ -576,22 +564,8 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
             prompt_enum=FloorPlanAgentPrompts.DESIGNER_INITIAL_INSTRUCTION,
         )
 
-        # Run designer.
-        result = await Runner.run(
-            starting_agent=self.designer,
-            input=instruction,
-            session=self.designer_session,
-            max_turns=self.cfg.agents.designer_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="DESIGNER (INITIAL FLOOR PLAN)")
-
-        if result.final_output:
-            log_agent_response(
-                response=result.final_output, agent_name="DESIGNER (INITIAL)"
-            )
-
-        return result.final_output
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
     async def _request_design_change_impl(self, instruction: str) -> str:
         """Implementation for design change request.
@@ -610,22 +584,8 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
             instruction=instruction,
         )
 
-        # Run designer.
-        result = await Runner.run(
-            starting_agent=self.designer,
-            input=full_instruction,
-            session=self.designer_session,
-            max_turns=self.cfg.agents.designer_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="DESIGNER (CHANGE FLOOR PLAN)")
-
-        if result.final_output:
-            log_agent_response(
-                response=result.final_output, agent_name="DESIGNER (CHANGE)"
-            )
-
-        return result.final_output
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
     async def generate_house_layout(self, prompt: str, output_dir: Path) -> HouseLayout:
         """Generate a house layout with floor plan geometry.
@@ -665,19 +625,8 @@ class StatefulFloorPlanAgent(BaseStatefulAgent, BaseFloorPlanAgent):
             prompt_enum=FloorPlanAgentPrompts.PLANNER_RUNNER_INSTRUCTION,
         )
 
-        # Run the floor plan design workflow.
-        result: RunResult = await Runner.run(
-            starting_agent=self.planner,
-            input=runner_instruction,
-            max_turns=self.cfg.agents.planner_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="PLANNER (FLOOR PLAN)")
-
-        if result.final_output:
-            log_agent_response(
-                response=result.final_output, agent_name="PLANNER (FLOOR PLAN)"
-            )
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
         # Final critique.
         # Check if scene changed since last checkpoint to avoid redundant critique.

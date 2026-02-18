@@ -12,6 +12,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import numpy as np
 
@@ -31,7 +32,6 @@ from scenesmith.agent_utils.room import (
     UniqueID,
     extract_and_propagate_support_surfaces,
 )
-from scenesmith.agent_utils.vlm_service import VLMService
 from scenesmith.manipuland_agents.tools.manipuland_tools import ManipulandTools
 from scenesmith.manipuland_agents.tools.vision_tools import ManipulandVisionTools
 from scenesmith.utils.logging import ConsoleLogger
@@ -234,7 +234,7 @@ class TestManipulandPlacement(unittest.TestCase):
         # Use temp directory for AssetManager to avoid polluting test outputs.
         temp_dir = tempfile.mkdtemp()
         temp_logger = ConsoleLogger(output_dir=Path(temp_dir))
-        vlm_service = VLMService()
+        vlm_service = MagicMock()
 
         # Create AssetManager for testing.
         # collision_client=None because test doesn't generate collision geometry.
@@ -584,7 +584,7 @@ class TestManipulandPlacement(unittest.TestCase):
 
         # Create test logger and VLM service.
         temp_logger = ConsoleLogger(output_dir=Path(temp_dir))
-        vlm_service = VLMService()
+        vlm_service = MagicMock()
 
         # Create AssetManager for testing.
         # collision_client=None because test doesn't generate collision geometry.

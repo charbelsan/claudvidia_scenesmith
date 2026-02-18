@@ -10,11 +10,11 @@ import numpy as np
 
 from scenesmith.agent_utils.rendering_manager import RenderingManager
 from scenesmith.agent_utils.room import ObjectType, RoomScene, UniqueID
-from scenesmith.agent_utils.vlm_service import VLMService
+# Removed: was VLMService - now handled by Claude subagents
 from scenesmith.prompts import prompt_manager
 from scenesmith.prompts.registry import ManipulandAgentPrompts
 from scenesmith.utils.omegaconf import OmegaConf
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 if TYPE_CHECKING:
     from scenesmith.agent_utils.blender import BlenderServer
@@ -163,7 +163,7 @@ class SceneAnalyzer:
 
     def __init__(
         self,
-        vlm_service: VLMService,
+        vlm_service: Any,  # Removed: was VLMService - now handled by Claude subagents
         rendering_manager: RenderingManager,
         cfg: OmegaConf,
         blender_server: "BlenderServer",

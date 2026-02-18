@@ -11,13 +11,9 @@ import math
 from pathlib import Path
 from typing import Any
 
-from agents import Agent, FunctionTool, Runner, RunResult, custom_span
 from omegaconf import DictConfig
 
-from scenesmith.agent_utils.base_stateful_agent import (
-    BaseStatefulAgent,
-    log_agent_usage,
-)
+from scenesmith.agent_utils.base_stateful_agent import BaseStatefulAgent
 from scenesmith.agent_utils.physical_feasibility import (
     apply_per_furniture_postprocessing,
 )
@@ -282,7 +278,7 @@ class StatefulManipulandAgent(BaseStatefulAgent, BaseManipulandAgent):
         self,
         current_furniture_id: UniqueID,
         support_surfaces: dict[str, SupportSurface],
-    ) -> list[FunctionTool]:
+    ) -> list:
         """Create designer tools with captured dependencies.
 
         Args:
@@ -321,8 +317,8 @@ class StatefulManipulandAgent(BaseStatefulAgent, BaseManipulandAgent):
         ]
 
     def _create_designer_agent(
-        self, tools: list[FunctionTool], furniture_description: str
-    ) -> Agent:
+        self, tools: list, furniture_description: str
+    ) -> Any:
         """Create designer agent with furniture-specific context.
 
         Args:
@@ -351,8 +347,8 @@ class StatefulManipulandAgent(BaseStatefulAgent, BaseManipulandAgent):
         )
 
     def _create_critic_agent(
-        self, tools: list[FunctionTool], furniture_description: str
-    ) -> Agent:
+        self, tools: list, furniture_description: str
+    ) -> Any:
         """Create critic agent with furniture-specific context.
 
         Args:
@@ -381,8 +377,8 @@ class StatefulManipulandAgent(BaseStatefulAgent, BaseManipulandAgent):
         )
 
     def _create_planner_agent(
-        self, tools: list[FunctionTool], furniture_description: str
-    ) -> Agent:
+        self, tools: list, furniture_description: str
+    ) -> Any:
         """Create planner agent with furniture-specific context.
 
         Args:
@@ -417,7 +413,7 @@ class StatefulManipulandAgent(BaseStatefulAgent, BaseManipulandAgent):
 
     def _create_tools_for_furniture(
         self, furniture_id: UniqueID
-    ) -> tuple[list[FunctionTool], list[FunctionTool], list[FunctionTool]]:
+    ) -> tuple[list, list, list]:  # (planner_tools, designer_tools, critic_tools)
         """Create tools for planner, designer, and critic.
 
         Args:
@@ -493,7 +489,7 @@ class StatefulManipulandAgent(BaseStatefulAgent, BaseManipulandAgent):
         """
         self.manipuland_tools.set_noise_profile(mode)
 
-    def _create_critic_tools(self, furniture_id: UniqueID) -> list[FunctionTool]:
+    def _create_critic_tools(self, furniture_id: UniqueID) -> list:
         """Create critic tools with read-only scene access.
 
         Args:
@@ -628,18 +624,8 @@ class StatefulManipulandAgent(BaseStatefulAgent, BaseManipulandAgent):
             prompt_enum=planner_runner_prompt,
         )
 
-        result: RunResult = await Runner.run(
-            starting_agent=self.planner,
-            input=runner_instruction,
-            max_turns=self.cfg.agents.planner_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="PLANNER (MANIPULAND)")
-
-        if result.final_output:
-            log_agent_response(
-                response=result.final_output, agent_name="PLANNER (MANIPULAND)"
-            )
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
         # Compute final critique and scores for completed furniture.
         # Check if scene changed since last checkpoint to avoid redundant critique.
@@ -757,101 +743,96 @@ class StatefulManipulandAgent(BaseStatefulAgent, BaseManipulandAgent):
         # Phase 2: Per-furniture loop.
         for furniture_selection in furniture_data:
             furniture_id = furniture_selection.furniture_id
-            # Create custom span for this furniture's manipuland placement.
-            with custom_span(
-                name=f"manipulands_{furniture_id}",
-                data={"furniture_id": str(furniture_id)},
-            ):
-                console_logger.info(f"Populating furniture: {furniture_id}")
-                if furniture_selection.suggested_items:
-                    console_logger.info(
-                        f"Suggested items: {furniture_selection.suggested_items}"
-                    )
-                    console_logger.info(
-                        f"Prompt constraints: {furniture_selection.prompt_constraints}"
-                    )
-                    console_logger.info(
-                        f"Style notes: {furniture_selection.style_notes}"
-                    )
-
-                # Extract support surface for this furniture.
-                furniture = scene.get_object(furniture_id)
-                if not furniture:
-                    console_logger.warning(
-                        f"Furniture {furniture_id} not found, skipping"
-                    )
-                    continue
-
-                # Extract all support surfaces using HSM algorithm.
-                hsm_config = SupportSurfaceExtractionConfig.from_config(
-                    cfg=self.cfg.support_surface_extraction
-                )
-                surfaces = extract_and_propagate_support_surfaces(
-                    scene=self.scene, furniture_object=furniture, config=hsm_config
-                )
-
+            console_logger.info(f"Populating furniture: {furniture_id}")
+            if furniture_selection.suggested_items:
                 console_logger.info(
-                    f"Extracted {len(surfaces)} support surface(s) for {furniture_id}"
+                    f"Suggested items: {furniture_selection.suggested_items}"
+                )
+                console_logger.info(
+                    f"Prompt constraints: {furniture_selection.prompt_constraints}"
+                )
+                console_logger.info(
+                    f"Style notes: {furniture_selection.style_notes}"
                 )
 
-                # Skip furniture with no support surfaces (e.g., plants, unsuitable geometry).
-                if not surfaces:
-                    console_logger.warning(
-                        f"No support surfaces found for {furniture_id}, skipping manipuland placement"
-                    )
-                    continue
+            # Extract support surface for this furniture.
+            furniture = scene.get_object(furniture_id)
+            if not furniture:
+                console_logger.warning(
+                    f"Furniture {furniture_id} not found, skipping"
+                )
+                continue
 
-                try:
-                    # Set up per-furniture context.
-                    self._setup_furniture_context(furniture_selection)
+            # Extract all support surfaces using HSM algorithm.
+            hsm_config = SupportSurfaceExtractionConfig.from_config(
+                cfg=self.cfg.support_surface_extraction
+            )
+            surfaces = extract_and_propagate_support_surfaces(
+                scene=self.scene, furniture_object=furniture, config=hsm_config
+            )
 
-                    # Generate context image for manipuland placement (if enabled).
-                    self.manipuland_context_image_path = (
-                        self._generate_manipuland_context_image()
-                    )
+            console_logger.info(
+                f"Extracted {len(surfaces)} support surface(s) for {furniture_id}"
+            )
 
-                    # Initialize checkpoint state.
-                    self._initialize_checkpoint_state()
+            # Skip furniture with no support surfaces (e.g., plants, unsuitable geometry).
+            if not surfaces:
+                console_logger.warning(
+                    f"No support surfaces found for {furniture_id}, skipping manipuland placement"
+                )
+                continue
 
-                    # Get furniture description for agent prompts.
-                    furniture_obj = scene.get_object(furniture_id)
-                    furniture_description = (
-                        furniture_obj.description if furniture_obj else "furniture"
-                    )
+            try:
+                # Set up per-furniture context.
+                self._setup_furniture_context(furniture_selection)
 
-                    # Create agents and sessions.
-                    self._setup_furniture_agents(
-                        furniture_id=furniture_id,
-                        furniture_description=furniture_description,
-                    )
+                # Generate context image for manipuland placement (if enabled).
+                self.manipuland_context_image_path = (
+                    self._generate_manipuland_context_image()
+                )
 
-                    # Run multi-agent workflow.
-                    await self._run_furniture_workflow(furniture_id)
+                # Initialize checkpoint state.
+                self._initialize_checkpoint_state()
 
-                    # Per-furniture post-processing (after manipulands placed).
-                    if self.cfg.per_furniture_postprocessing.enabled:
-                        sim_cfg = self.cfg.per_furniture_postprocessing.simulation
-                        sim_html_path = None
-                        if sim_cfg.save_html:
-                            sim_html_path = (
-                                self.scene.scene_dir
-                                / "simulation"
-                                / "per_furniture"
-                                / f"{furniture_id}_simulation.html"
-                            )
-                        self.scene = apply_per_furniture_postprocessing(
-                            full_scene=self.scene,
-                            furniture_id=furniture_id,
-                            config=self.cfg.per_furniture_postprocessing,
-                            simulation_html_path=sim_html_path,
+                # Get furniture description for agent prompts.
+                furniture_obj = scene.get_object(furniture_id)
+                furniture_description = (
+                    furniture_obj.description if furniture_obj else "furniture"
+                )
+
+                # Create agents and sessions.
+                self._setup_furniture_agents(
+                    furniture_id=furniture_id,
+                    furniture_description=furniture_description,
+                )
+
+                # Run multi-agent workflow.
+                await self._run_furniture_workflow(furniture_id)
+
+                # Per-furniture post-processing (after manipulands placed).
+                if self.cfg.per_furniture_postprocessing.enabled:
+                    sim_cfg = self.cfg.per_furniture_postprocessing.simulation
+                    sim_html_path = None
+                    if sim_cfg.save_html:
+                        sim_html_path = (
+                            self.scene.scene_dir
+                            / "simulation"
+                            / "per_furniture"
+                            / f"{furniture_id}_simulation.html"
                         )
-
-                except Exception as e:
-                    console_logger.error(
-                        f"Error populating furniture {furniture_id}: {e}", exc_info=True
+                    self.scene = apply_per_furniture_postprocessing(
+                        full_scene=self.scene,
+                        furniture_id=furniture_id,
+                        config=self.cfg.per_furniture_postprocessing,
+                        simulation_html_path=sim_html_path,
                     )
-                    # Continue to next furniture piece.
-                    continue
+
+            except Exception as e:
+                console_logger.error(
+                    f"Error populating furniture {furniture_id}: {e}", exc_info=True
+                )
+                # Continue to next furniture piece.
+                continue
 
         console_logger.info("Manipuland placement complete")
 

@@ -16,7 +16,9 @@ from omegaconf import DictConfig
 from pydantic import BaseModel, Field
 
 from scenesmith.prompts import RobotEvalPrompts, prompt_registry
-from scenesmith.robot_eval.llm_utils import structured_llm_call
+
+# TODO: structured_llm_call was removed with scenesmith.robot_eval.llm_utils.
+# The generate() method below needs to be updated to use an alternative LLM call mechanism.
 
 console_logger = logging.getLogger(__name__)
 

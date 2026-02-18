@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 
 import requests
 
-from agents import FunctionTool, ToolOutputImage, function_tool
 from pydrake.all import (
     AddMultibodyPlantSceneGraph,
     ApplyCameraConfig,
@@ -309,7 +308,7 @@ def _render_validation_scene(
 
 def create_vision_tools(
     scene: DMDScene, blender_server: "BlenderServer", render_id: str | None = None
-) -> list[FunctionTool]:
+) -> list:
     """Create vision tools for agents.
 
     Creates tools that provide visual observations of the scene by
@@ -326,7 +325,7 @@ def create_vision_tools(
             scene_dir/validation_renders_{render_id}/.
 
     Returns:
-        List of FunctionTool objects for the agent.
+        List of tool objects for the agent.
     """
     # Build render output base directory with optional unique suffix.
     if render_id is not None:
@@ -334,8 +333,7 @@ def create_vision_tools(
     else:
         render_base = scene.scene_dir / "validation_renders"
 
-    @function_tool
-    def observe_scene() -> list[ToolOutputImage]:
+    def observe_scene() -> list:
         """Take visual snapshots of the entire scene from multiple viewpoints.
 
         Returns images showing the full scene from top-down, front, and
@@ -358,11 +356,10 @@ def create_vision_tools(
         )
 
         return [
-            ToolOutputImage(image_url=_image_path_to_data_url(p)) for p in render_paths
+            {"type": "image", "image_url": _image_path_to_data_url(p)} for p in render_paths
         ]
 
-    @function_tool
-    def observe_objects(object_ids: list[str]) -> list[ToolOutputImage]:
+    def observe_objects(object_ids: list[str]) -> list:
         """Take focused visual snapshots of specific objects.
 
         Renders the specified objects from multiple angles for detailed
@@ -396,7 +393,7 @@ def create_vision_tools(
         )
 
         return [
-            ToolOutputImage(image_url=_image_path_to_data_url(p)) for p in render_paths
+            {"type": "image", "image_url": _image_path_to_data_url(p)} for p in render_paths
         ]
 
     return [observe_scene, observe_objects]

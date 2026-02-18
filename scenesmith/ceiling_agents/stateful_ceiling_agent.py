@@ -14,15 +14,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from agents import Agent, FunctionTool, Runner
-from agents.run import RunResult
-from agents.tracing import custom_span
 from omegaconf import DictConfig
 
-from scenesmith.agent_utils.base_stateful_agent import (
-    BaseStatefulAgent,
-    log_agent_usage,
-)
+from scenesmith.agent_utils.base_stateful_agent import BaseStatefulAgent
 from scenesmith.agent_utils.placement_noise import PlacementNoiseMode
 from scenesmith.agent_utils.room import AgentType, RoomScene
 from scenesmith.agent_utils.scoring import CeilingCritiqueWithScores, log_agent_response
@@ -123,7 +117,7 @@ class StatefulCeilingAgent(BaseStatefulAgent, BaseCeilingAgent):
         # Ceiling tools will be set when adding ceiling objects.
         self.ceiling_tools: CeilingTools | None = None
 
-    def _create_designer_tools(self) -> list[FunctionTool]:
+    def _create_designer_tools(self) -> list:
         """Create designer tools with captured dependencies.
 
         Returns:
@@ -153,8 +147,8 @@ class StatefulCeilingAgent(BaseStatefulAgent, BaseCeilingAgent):
         ]
 
     def _create_designer_agent(
-        self, tools: list[FunctionTool], room_description: str
-    ) -> Agent:
+        self, tools: list, room_description: str
+    ) -> Any:
         """Create designer agent with room-specific context.
 
         Args:
@@ -180,7 +174,7 @@ class StatefulCeilingAgent(BaseStatefulAgent, BaseCeilingAgent):
             ceiling_height=self.ceiling_height,
         )
 
-    def _create_critic_tools(self) -> list[FunctionTool]:
+    def _create_critic_tools(self) -> list:
         """Create critic tools with read-only scene access.
 
         Returns:
@@ -204,8 +198,8 @@ class StatefulCeilingAgent(BaseStatefulAgent, BaseCeilingAgent):
         ]
 
     def _create_critic_agent(
-        self, tools: list[FunctionTool], room_description: str
-    ) -> Agent:
+        self, tools: list, room_description: str
+    ) -> Any:
         """Create critic agent with room-specific context.
 
         Args:
@@ -233,8 +227,8 @@ class StatefulCeilingAgent(BaseStatefulAgent, BaseCeilingAgent):
         )
 
     def _create_planner_agent(
-        self, tools: list[FunctionTool], room_description: str
-    ) -> Agent:
+        self, tools: list, room_description: str
+    ) -> Any:
         """Create planner agent with room-specific context.
 
         Args:
@@ -364,18 +358,8 @@ class StatefulCeilingAgent(BaseStatefulAgent, BaseCeilingAgent):
             prompt_enum=planner_runner_prompt,
         )
 
-        result: RunResult = await Runner.run(
-            starting_agent=self.planner,
-            input=runner_instruction,
-            max_turns=self.cfg.agents.planner_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="PLANNER (CEILING)")
-
-        if result.final_output:
-            log_agent_response(
-                response=result.final_output, agent_name="PLANNER (CEILING)"
-            )
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
         # Compute final critique and scores.
         # Check if scene changed since last checkpoint to avoid redundant critique.
@@ -438,34 +422,25 @@ class StatefulCeilingAgent(BaseStatefulAgent, BaseCeilingAgent):
         # Clear render cache to ensure fresh renders.
         self.rendering_manager.clear_cache()
 
-        with custom_span(
-            name="ceiling_decoration",
-            data={
-                "room_id": scene.room_id,
-                "room_width": room_width,
-                "room_depth": room_depth,
-                "ceiling_height": self.ceiling_height,
-            },
-        ):
-            try:
-                # Get room description for agent context.
-                room_description = (
-                    scene.text_description
-                    if scene.text_description
-                    else f"Room {scene.room_id}"
-                )
+        try:
+            # Get room description for agent context.
+            room_description = (
+                scene.text_description
+                if scene.text_description
+                else f"Room {scene.room_id}"
+            )
 
-                # Create agents and sessions.
-                self._setup_ceiling_agents(room_description=room_description)
+            # Create agents and sessions.
+            self._setup_ceiling_agents(room_description=room_description)
 
-                # Run multi-agent workflow.
-                await self._run_ceiling_workflow()
+            # Run multi-agent workflow.
+            await self._run_ceiling_workflow()
 
-            except Exception as e:
-                console_logger.error(
-                    f"Error during ceiling decoration for {scene.room_id}: {e}",
-                    exc_info=True,
-                )
-                raise
+        except Exception as e:
+            console_logger.error(
+                f"Error during ceiling decoration for {scene.room_id}: {e}",
+                exc_info=True,
+            )
+            raise
 
         console_logger.info("Ceiling decoration complete")

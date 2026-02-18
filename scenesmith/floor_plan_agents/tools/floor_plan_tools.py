@@ -10,8 +10,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import Literal
 
-from agents import function_tool
-
 from scenesmith.agent_utils.house import (
     ConnectionType,
     HouseLayout,
@@ -210,7 +208,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             Dictionary mapping tool names to tool functions.
         """
 
-        @function_tool
         def generate_room_specs(room_specs_json: str) -> RoomSpecsResult:
             """Create rooms with the specified dimensions and adjacencies.
 
@@ -235,7 +232,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._generate_room_specs_impl(room_specs_json)
 
-        @function_tool
         def resize_room(room_id: str, width: float, depth: float) -> Result:
             """Change a room's dimensions.
 
@@ -249,7 +245,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._resize_room_impl(room_type=room_id, width=width, depth=depth)
 
-        @function_tool
         def add_adjacency(room_a: str, room_b: str) -> Result:
             """Require two rooms to share a wall.
 
@@ -262,7 +257,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._add_adjacency_impl(room_a=room_a, room_b=room_b)
 
-        @function_tool
         def remove_adjacency(room_a: str, room_b: str) -> Result:
             """Remove requirement for two rooms to share a wall.
 
@@ -275,7 +269,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._remove_adjacency_impl(room_a=room_a, room_b=room_b)
 
-        @function_tool
         def add_open_connection(room_a: str, room_b: str) -> Result:
             """Remove wall between rooms for open floor plan (e.g., "living room open
             to kitchen").
@@ -292,7 +285,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._add_open_connection_impl(room_a=room_a, room_b=room_b)
 
-        @function_tool
         def remove_open_connection(room_a: str, room_b: str) -> Result:
             """Remove an open floor plan connection and restore the wall.
 
@@ -305,7 +297,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._remove_open_connection_impl(room_a=room_a, room_b=room_b)
 
-        @function_tool
         def set_wall_height(height_meters: float) -> Result:
             """Set the wall height for all rooms.
 
@@ -317,7 +308,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._set_wall_height_impl(height_meters=height_meters)
 
-        @function_tool
         def add_door(
             wall_id: str, position: str, width: float = 0.9, height: float = 2.1
         ) -> Result:
@@ -336,7 +326,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
                 wall_id=wall_id, position=position, width=width, height=height
             )
 
-        @function_tool
         def remove_door(door_id: str) -> Result:
             """Remove a door.
 
@@ -348,7 +337,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._remove_door_impl(door_id)
 
-        @function_tool
         def add_window(
             wall_id: str,
             position: str,
@@ -376,7 +364,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
                 sill_height=sill_height,
             )
 
-        @function_tool
         def remove_window(window_id: str) -> Result:
             """Remove a window.
 
@@ -388,7 +375,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._remove_window_impl(window_id)
 
-        @function_tool
         def get_material(description: str) -> MaterialResult:
             """Search for a material by description.
 
@@ -400,7 +386,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._get_material_impl(description)
 
-        @function_tool
         def set_room_materials(
             room_id: str,
             floor_material_id: str = "",
@@ -422,7 +407,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
                 wall_material_id=wall_material_id,
             )
 
-        @function_tool
         def set_exterior_material(material_id: str) -> Result:
             """Set exterior wall material.
 
@@ -434,7 +418,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._set_exterior_material_impl(material_id)
 
-        @function_tool
         def list_room_materials() -> MaterialsListResult:
             """List current material assignments for all rooms.
 
@@ -443,7 +426,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._list_room_materials_impl()
 
-        @function_tool
         def validate() -> ValidationResult:
             """Validate the floor plan for completeness.
 
@@ -452,7 +434,6 @@ class FloorPlanTools(DoorWindowMixin, OpenPlanMixin):
             """
             return self._validate_impl()
 
-        @function_tool
         def render_ascii() -> str:
             """Generate ASCII representation of the floor plan.
 

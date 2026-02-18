@@ -2,8 +2,6 @@ import unittest
 
 from unittest.mock import MagicMock, patch
 
-from agents import ToolOutputImage, ToolOutputText
-
 from scenesmith.agent_utils.rendering_manager import RenderingManager
 from scenesmith.agent_utils.room import AgentType, RoomScene
 from scenesmith.furniture_agents.tools.vision_tools import VisionTools
@@ -61,7 +59,7 @@ class TestVisionTools(unittest.TestCase):
         return_value="fake_base64_data",
     )
     def test_observe_scene_successful(self, mock_encode):
-        """Test successful scene observation returns ToolOutputImage list."""
+        """Test successful scene observation returns image dict list."""
         # Setup mocks - create a mock directory with Path objects.
         mock_dir = MagicMock()
         mock_dir.exists.return_value = True
@@ -89,17 +87,20 @@ class TestVisionTools(unittest.TestCase):
             self.mock_scene, blender_server=self.mock_blender_server, room_bounds=None
         )
 
-        # Verify result is a list with ToolOutputImage and ToolOutputText.
+        # Verify result is a list with image dicts and a text dict.
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 3)  # 2 images + 1 text message
 
-        # First two should be ToolOutputImage.
-        self.assertIsInstance(result[0], ToolOutputImage)
-        self.assertIsInstance(result[1], ToolOutputImage)
+        # First two should be image dicts.
+        self.assertIsInstance(result[0], dict)
+        self.assertEqual(result[0]["type"], "image")
+        self.assertIsInstance(result[1], dict)
+        self.assertEqual(result[1]["type"], "image")
 
-        # Last should be ToolOutputText with confirmation message.
-        self.assertIsInstance(result[2], ToolOutputText)
-        self.assertIn("Scene observed from 2 viewpoints", result[2].text)
+        # Last should be a text dict with confirmation message.
+        self.assertIsInstance(result[2], dict)
+        self.assertEqual(result[2]["type"], "text")
+        self.assertIn("Scene observed from 2 viewpoints", result[2]["text"])
 
     def test_observe_scene_no_renders(self):
         """Test scene observation when no renders are generated."""
@@ -112,8 +113,8 @@ class TestVisionTools(unittest.TestCase):
         # Verify result is a list with error message.
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 1)
-        self.assertIsInstance(result[0], ToolOutputText)
-        self.assertIn("Unable to observe scene", result[0].text)
+        self.assertIsInstance(result[0], dict)
+        self.assertIn("Unable to observe scene", result[0]["text"])
 
     def test_observe_scene_empty_directory(self):
         """Test scene observation when directory exists but has no images."""
@@ -130,8 +131,8 @@ class TestVisionTools(unittest.TestCase):
         # Verify result contains only the confirmation text (0 images).
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 1)
-        self.assertIsInstance(result[0], ToolOutputText)
-        self.assertIn("Scene observed from 0 viewpoints", result[0].text)
+        self.assertIsInstance(result[0], dict)
+        self.assertIn("Scene observed from 0 viewpoints", result[0]["text"])
 
     def test_observe_scene_rendering_exception(self):
         """Test scene observation when rendering throws exception."""
@@ -175,7 +176,7 @@ class TestVisionTools(unittest.TestCase):
         return_value="dGVzdF9pbWFnZV9kYXRh",  # base64 of "test_image_data"
     )
     def test_observe_scene_image_encoding(self, mock_encode):
-        """Test that images are properly base64 encoded in ToolOutputImage."""
+        """Test that images are properly base64 encoded in image dicts."""
         # Setup mocks - create a mock directory with Path objects.
         mock_dir = MagicMock()
         mock_dir.exists.return_value = True
@@ -193,10 +194,11 @@ class TestVisionTools(unittest.TestCase):
 
         # Verify result contains an image.
         self.assertEqual(len(result), 2)  # 1 image + 1 text
-        self.assertIsInstance(result[0], ToolOutputImage)
+        self.assertIsInstance(result[0], dict)
+        self.assertEqual(result[0]["type"], "image")
 
         # Verify the image URL is base64 encoded with correct format.
-        image_url = result[0].image_url
+        image_url = result[0]["image_url"]
         self.assertTrue(image_url.startswith("data:image/png;base64,"))
 
         # Verify the base64 data is included in the URL.
@@ -208,13 +210,13 @@ class TestVisionTools(unittest.TestCase):
         # Test the implementation method directly since tool framework testing.
         # would require more complex mocking.
         with patch.object(self.vision_tools, "_observe_scene_impl") as mock_impl:
-            mock_impl.return_value = [ToolOutputText(text="Test observation result")]
+            mock_impl.return_value = [{"type": "text", "text": "Test observation result"}]
 
             result = self.vision_tools._observe_scene_impl()
 
             mock_impl.assert_called_once()
             self.assertEqual(len(result), 1)
-            self.assertIsInstance(result[0], ToolOutputText)
+            self.assertIsInstance(result[0], dict)
 
     @patch("scenesmith.furniture_agents.tools.vision_tools.check_physics_violations")
     def test_check_physics_no_violations(self, mock_check_physics):

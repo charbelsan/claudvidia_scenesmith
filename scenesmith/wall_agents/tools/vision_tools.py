@@ -10,14 +10,13 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from agents import ToolOutputImage, ToolOutputText, function_tool
 from omegaconf import DictConfig
 
 from scenesmith.agent_utils.house import WallDirection
 from scenesmith.agent_utils.physics_tools import check_physics_violations
 from scenesmith.agent_utils.rendering_manager import RenderingManager
 from scenesmith.agent_utils.room import AgentType, ObjectType, RoomScene
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 from scenesmith.wall_agents.tools.wall_surface import WallSurface
 
 if TYPE_CHECKING:
@@ -61,8 +60,7 @@ class WallVisionTools:
     def _create_tool_closures(self) -> dict:
         """Create tool closures for vision operations."""
 
-        @function_tool
-        def observe_scene() -> list[ToolOutputImage | ToolOutputText]:
+        def observe_scene() -> list:
             """Observe the current scene state for wall placement.
 
             Renders views of the room to help with wall object placement:
@@ -78,8 +76,7 @@ class WallVisionTools:
             """
             return self._observe_scene_impl()
 
-        @function_tool
-        def check_physics() -> list[ToolOutputText]:
+        def check_physics() -> list:
             """Check physics validity of current wall placements.
 
             Returns:
@@ -92,7 +89,7 @@ class WallVisionTools:
             "check_physics": check_physics,
         }
 
-    def _observe_scene_impl(self) -> list[ToolOutputImage | ToolOutputText]:
+    def _observe_scene_impl(self) -> list:
         """Implementation for scene observation.
 
         Renders wall views in a single call:
@@ -104,7 +101,7 @@ class WallVisionTools:
         """
         console_logger.info("Tool called: observe_scene")
 
-        outputs: list[ToolOutputImage | ToolOutputText] = []
+        outputs: list = []
 
         # Get all object IDs by type.
         all_furniture_ids = [
@@ -165,14 +162,12 @@ class WallVisionTools:
             )
 
         # Add summary message.
-        num_images = sum(1 for o in outputs if isinstance(o, ToolOutputImage))
+        num_images = sum(1 for o in outputs if isinstance(o, dict) and o.get("type") == "image")
         wall_names = [s.wall_id for s in self.wall_surfaces]
         outputs.append(
-            ToolOutputText(
-                text=f"Scene observed from {num_images} viewpoints. "
+            {"type": "text", "text": f"Scene observed from {num_images} viewpoints. "
                 f"Walls shown: {wall_names}. "
-                f"{len(all_wall_object_ids)} wall objects placed."
-            )
+                f"{len(all_wall_object_ids)} wall objects placed."}
         )
 
         return outputs
@@ -239,13 +234,13 @@ class WallVisionTools:
             agent_type=AgentType.WALL_MOUNTED,
         )
 
-    def _collect_images(self, images_dir: Path) -> list[ToolOutputImage]:
+    def _collect_images(self, images_dir: Path) -> list:
         """Collect rendered images from directory."""
         outputs = []
         for img_path in sorted(images_dir.glob("*.png")):
             img_base64 = encode_image_to_base64(img_path)
             outputs.append(
-                ToolOutputImage(image_url=f"data:image/png;base64,{img_base64}")
+                {"type": "image", "image_url": f"data:image/png;base64,{img_base64}"}
             )
         return outputs
 

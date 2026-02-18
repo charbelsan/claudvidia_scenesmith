@@ -5,7 +5,6 @@ from typing import Any
 
 import numpy as np
 
-from agents import function_tool
 from omegaconf import DictConfig
 from pydrake.all import RigidTransform, RollPitchYaw, RotationMatrix
 
@@ -53,7 +52,6 @@ class SceneTools:
     def _create_tool_closures(self) -> dict[str, Any]:
         """Create closure-based tools that capture self."""
 
-        @function_tool
         def get_current_scene_state() -> str:
             """See all furniture currently in the room with precise spatial data.
 
@@ -69,7 +67,6 @@ class SceneTools:
             """
             return self._get_current_scene_impl()
 
-        @function_tool
         def check_facing_tool(
             object_a_id: str, object_b_id: str, direction: str = "toward"
         ) -> str:
@@ -108,7 +105,6 @@ class SceneTools:
                 direction=direction,
             )
 
-        @function_tool
         def snap_to_object_tool(
             object_id: str, target_id: str, orientation: str = "none"
         ) -> str:

@@ -12,7 +12,6 @@ from typing import Any
 
 import numpy as np
 
-from agents import function_tool
 from omegaconf import DictConfig
 from pydrake.math import RollPitchYaw
 
@@ -146,7 +145,6 @@ class WallTools:
     def _create_tool_closures(self) -> dict[str, Any]:
         """Create tool closures that capture wall context."""
 
-        @function_tool
         def generate_wall_assets(
             object_descriptions: list[str],
             short_names: list[str],
@@ -190,7 +188,6 @@ class WallTools:
             )
             return self._generate_assets_impl(request)
 
-        @function_tool
         def list_wall_surfaces() -> str:
             """List all wall surfaces available for placement.
 
@@ -224,7 +221,6 @@ class WallTools:
             }
             return json.dumps(result, indent=2, default=str)
 
-        @function_tool
         def place_wall_object(
             asset_id: str,
             wall_surface_id: str,
@@ -271,7 +267,6 @@ class WallTools:
                 rotation_degrees=rotation_degrees,
             )
 
-        @function_tool
         def move_wall_object(
             object_id: str,
             wall_surface_id: str,
@@ -304,7 +299,6 @@ class WallTools:
                 rotation_degrees=rotation_degrees,
             )
 
-        @function_tool
         def remove_wall_object(object_id: str) -> str:
             """Remove a wall object from the scene.
 
@@ -316,7 +310,6 @@ class WallTools:
             """
             return self._remove_wall_object_impl(object_id=object_id)
 
-        @function_tool
         def get_current_scene_state() -> str:
             """Get current scene state for wall objects.
 
@@ -330,7 +323,6 @@ class WallTools:
             console_logger.info("Tool called: get_current_scene_state")
             return self._get_current_scene_state_impl()
 
-        @function_tool
         def list_available_assets() -> str:
             """List all available wall assets.
 
@@ -342,7 +334,6 @@ class WallTools:
             console_logger.info("Tool called: list_available_assets")
             return self._list_available_assets_impl()
 
-        @function_tool
         def rescale_wall_object(object_id: str, scale_factor: float) -> str:
             """Resize a wall object by a uniform scale factor.
 

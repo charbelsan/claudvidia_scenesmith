@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from agents import function_tool
 from omegaconf import DictConfig
 from pydrake.all import RigidTransform, RollPitchYaw
 
@@ -214,7 +213,6 @@ class FurnitureTools:
     def _create_tool_closures(self) -> dict[str, Any]:
         """Create closure-based tools that capture self."""
 
-        @function_tool
         def generate_assets(
             object_descriptions: list[str],
             short_names: list[str],
@@ -269,7 +267,6 @@ class FurnitureTools:
             )
             return self._generate_assets_impl(request)
 
-        @function_tool
         def add_furniture_to_scene_tool(
             asset_id: str,
             x: float,
@@ -307,7 +304,6 @@ class FurnitureTools:
                 yaw=yaw,
             )
 
-        @function_tool
         def move_furniture_tool(
             object_id: str,
             x: float,
@@ -343,7 +339,6 @@ class FurnitureTools:
                 yaw=yaw,
             )
 
-        @function_tool
         def remove_furniture_tool(object_id: str) -> str:
             """Remove furniture from the room.
 
@@ -358,7 +353,6 @@ class FurnitureTools:
             """
             return self._remove_furniture_impl(object_id)
 
-        @function_tool
         def list_available_assets() -> str:
             """See all furniture models you can place with their dimensions.
 
@@ -372,7 +366,6 @@ class FurnitureTools:
             """
             return self._list_available_assets_impl()
 
-        @function_tool
         def rescale_furniture_tool(object_id: str, scale_factor: float) -> str:
             """Resize furniture by a uniform scale factor.
 

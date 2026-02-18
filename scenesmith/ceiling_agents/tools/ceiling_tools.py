@@ -9,7 +9,6 @@ import math
 
 from typing import Any
 
-from agents import function_tool
 from omegaconf import DictConfig
 from pydrake.all import RigidTransform, RollPitchYaw
 
@@ -156,7 +155,6 @@ class CeilingTools:
     def _create_tool_closures(self) -> dict[str, Any]:
         """Create tool closures that capture ceiling context."""
 
-        @function_tool
         def generate_ceiling_assets(
             object_descriptions: list[str],
             short_names: list[str],
@@ -199,7 +197,6 @@ class CeilingTools:
             )
             return self._generate_assets_impl(request)
 
-        @function_tool
         def place_ceiling_object(
             asset_id: str,
             position_x: float,
@@ -241,7 +238,6 @@ class CeilingTools:
                 rotation_degrees=rotation_degrees,
             )
 
-        @function_tool
         def move_ceiling_object(
             object_id: str,
             position_x: float,
@@ -270,7 +266,6 @@ class CeilingTools:
                 rotation_degrees=rotation_degrees,
             )
 
-        @function_tool
         def remove_ceiling_object(object_id: str) -> str:
             """Remove a ceiling object from the scene.
 
@@ -282,7 +277,6 @@ class CeilingTools:
             """
             return self._remove_ceiling_object_impl(object_id=object_id)
 
-        @function_tool
         def get_current_scene_state() -> str:
             """Get current scene state for ceiling objects.
 
@@ -296,7 +290,6 @@ class CeilingTools:
             console_logger.info("Tool called: get_current_scene_state")
             return self._get_current_scene_state_impl()
 
-        @function_tool
         def list_available_assets() -> str:
             """List all available ceiling assets.
 
@@ -308,7 +301,6 @@ class CeilingTools:
             console_logger.info("Tool called: list_available_assets")
             return self._list_available_assets_impl()
 
-        @function_tool
         def rescale_ceiling_object(object_id: str, scale_factor: float) -> str:
             """Resize a ceiling object by a uniform scale factor.
 

@@ -2,7 +2,7 @@
 
 These tools allow the floor plan agent to visualize the floor plan design
 using ASCII rendering, Blender perspective rendering, and material preview images.
-Images are returned via ToolOutputImage so they persist in the session.
+Images are returned so they persist in the session.
 """
 
 import logging
@@ -13,7 +13,6 @@ from pathlib import Path
 
 import requests
 
-from agents import ToolOutputImage, ToolOutputText, function_tool
 from PIL import Image, ImageDraw, ImageFont
 from pydrake.all import ApplyCameraConfig, CameraConfig, RenderEngineGltfClientParams
 from pydrake.common.schema import Transform
@@ -25,7 +24,7 @@ from scenesmith.agent_utils.drake_utils import create_plant_from_dmd
 from scenesmith.agent_utils.house import HouseLayout
 from scenesmith.floor_plan_agents.tools.ascii_generator import generate_ascii_floor_plan
 from scenesmith.utils.material import Material
-from scenesmith.utils.openai import encode_image_to_base64
+from scenesmith.utils.image_utils import encode_image_to_base64
 
 console_logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ class FloorPlanVisionTools:
 
     Provides tools for visualizing the floor plan using Blender perspective
     rendering and ASCII text representation. Images are returned via
-    ToolOutputImage so they persist in the session.
+    so they persist in the session.
     """
 
     def __init__(
@@ -137,8 +136,7 @@ class FloorPlanVisionTools:
             Dictionary mapping tool names to tool functions.
         """
 
-        @function_tool
-        def observe_scene() -> list[ToolOutputImage | ToolOutputText]:
+        def observe_scene() -> list:
             """Observe the current floor plan visually.
 
             Shows rooms with wall/floor materials, door openings, and windows from
@@ -150,7 +148,6 @@ class FloorPlanVisionTools:
             """
             return self._observe_scene_impl()
 
-        @function_tool
         def render_ascii() -> str:
             """Generate text representation of floor plan.
 
@@ -483,18 +480,16 @@ class FloorPlanVisionTools:
 
         return material_usage
 
-    def _observe_scene_impl(self) -> list[ToolOutputImage | ToolOutputText]:
+    def _observe_scene_impl(self) -> list:
         """Implementation of observe_scene tool.
 
         Uses DMD-based Drake pipeline to render the floor plan. Returns images
-        directly via ToolOutputImage so they persist in the session.
+        directly so they persist in the session.
         """
         console_logger.info("Tool called: observe_scene")
         if not self.layout.placed_rooms:
             return [
-                ToolOutputText(
-                    text="No rooms to render. Call generate_room_specs first."
-                )
+                {"type": "text", "text": "No rooms to render. Call generate_room_specs first."}
             ]
 
         # Ensure room geometries exist for ALL rooms.
@@ -527,26 +522,24 @@ class FloorPlanVisionTools:
                 self._last_render_dir = cached_render_dir
 
                 # Collect cached images.
-                outputs: list[ToolOutputImage | ToolOutputText] = []
+                outputs: list = []
                 for img_path in sorted(cached_render_dir.glob("*.png")):
                     img_base64 = encode_image_to_base64(img_path)
                     outputs.append(
-                        ToolOutputImage(image_url=f"data:image/png;base64,{img_base64}")
+                        {"type": "image", "image_url": f"data:image/png;base64,{img_base64}"}
                     )
 
                 # Read ASCII for result message.
                 ascii_result = generate_ascii_floor_plan(self.layout.placed_rooms)
 
                 outputs.append(
-                    ToolOutputText(
-                        text=f"Floor plan rendered (cached).\n\n"
+                    {"type": "text", "text": f"Floor plan rendered (cached).\n\n"
                         f"ASCII Reference:\n{ascii_result.ascii_art}\n\n"
-                        f"{ascii_result.legend}"
-                    )
+                        f"{ascii_result.legend}"}
                 )
 
                 console_logger.info(
-                    f"Returning {len(outputs) - 1} cached images via ToolOutputImage"
+                    f"Returning {len(outputs) - 1} cached images"
                 )
                 return outputs
 
@@ -667,34 +660,30 @@ class FloorPlanVisionTools:
             console_logger.info(f"Cached render with key: {layout_hash}")
 
             # Collect images and return them directly.
-            outputs: list[ToolOutputImage | ToolOutputText] = []
+            outputs: list = []
             for img_path in sorted(render_dir.glob("*.png")):
                 img_base64 = encode_image_to_base64(img_path)
                 outputs.append(
-                    ToolOutputImage(image_url=f"data:image/png;base64,{img_base64}")
+                    {"type": "image", "image_url": f"data:image/png;base64,{img_base64}"}
                 )
 
             num_images = len(outputs)
             outputs.append(
-                ToolOutputText(
-                    text=f"Floor plan rendered with {num_images} images.\n\n"
+                {"type": "text", "text": f"Floor plan rendered with {num_images} images.\n\n"
                     f"ASCII Reference:\n{ascii_result.ascii_art}\n\n"
-                    f"{ascii_result.legend}"
-                )
+                    f"{ascii_result.legend}"}
             )
 
-            console_logger.info(f"Returning {num_images} images via ToolOutputImage")
+            console_logger.info(f"Returning {num_images} images")
             return outputs
 
         except Exception as e:
             console_logger.error(f"Floor plan rendering failed: {e}")
             # ASCII already saved to render_dir - return failure with ASCII reference.
             return [
-                ToolOutputText(
-                    text=f"Blender rendering failed ({e}). ASCII saved to: {ascii_path}\n\n"
+                {"type": "text", "text": f"Blender rendering failed ({e}). ASCII saved to: {ascii_path}\n\n"
                     f"{ascii_result.ascii_art}\n\n"
-                    f"{ascii_result.legend}"
-                )
+                    f"{ascii_result.legend}"}
             ]
 
     def _render_ascii_impl(self) -> str:

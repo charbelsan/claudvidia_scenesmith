@@ -10,7 +10,6 @@ from typing import Any
 import numpy as np
 import trimesh
 
-from agents import function_tool
 from omegaconf import DictConfig
 from pydrake.all import RollPitchYaw
 from scipy.spatial import ConvexHull, QhullError
@@ -476,7 +475,6 @@ class ManipulandTools:
     def _create_tool_closures(self) -> dict[str, Any]:
         """Create tool closures that capture current furniture/surface context."""
 
-        @function_tool
         def generate_manipuland_assets(
             object_descriptions: list[str],
             short_names: list[str],
@@ -512,7 +510,6 @@ class ManipulandTools:
             )
             return self._generate_assets_impl(request)
 
-        @function_tool
         def list_support_surfaces() -> str:
             """List all support surfaces available on the current furniture.
 
@@ -553,7 +550,6 @@ class ManipulandTools:
 
             return json.dumps(result, indent=2)
 
-        @function_tool
         def place_manipuland_on_surface(
             asset_id: str,
             surface_id: str,
@@ -599,7 +595,6 @@ class ManipulandTools:
                 },
             )
 
-        @function_tool
         def move_manipuland(
             object_id: str,
             surface_id: str,
@@ -643,7 +638,6 @@ class ManipulandTools:
                 },
             )
 
-        @function_tool
         def remove_manipuland(object_id: str) -> str:
             """Remove a manipuland from the scene.
 
@@ -660,7 +654,6 @@ class ManipulandTools:
                 },
             )
 
-        @function_tool
         def get_current_scene_state() -> str:
             """Get current scene state filtered to current furniture + manipulands.
 
@@ -680,7 +673,6 @@ class ManipulandTools:
             """
             return self._get_current_scene_state_impl()
 
-        @function_tool
         def list_available_assets() -> str:
             """List all available manipuland assets (from all furniture).
 
@@ -692,7 +684,6 @@ class ManipulandTools:
             """
             return self._list_available_assets_impl()
 
-        @function_tool
         def create_stack(
             asset_ids: list[str],
             surface_id: str,
@@ -742,7 +733,6 @@ class ManipulandTools:
                 },
             )
 
-        @function_tool
         def fill_container(
             container_asset_id: str,
             fill_asset_ids: list[str],
@@ -793,7 +783,6 @@ class ManipulandTools:
                 },
             )
 
-        @function_tool
         def create_arrangement(
             container_asset_id: str,
             fill_assets: list[FillAssetItem],
@@ -844,7 +833,6 @@ class ManipulandTools:
                 },
             )
 
-        @function_tool
         def create_pile(
             asset_ids: list[str], surface_id: str, position_x: float, position_z: float
         ) -> str:
@@ -899,7 +887,6 @@ class ManipulandTools:
                 },
             )
 
-        @function_tool
         def rescale_manipuland(object_id: str, scale_factor: float) -> str:
             """Resize manipuland by a uniform scale factor.
 
@@ -932,7 +919,6 @@ class ManipulandTools:
                 },
             )
 
-        @function_tool
         def resolve_penetrations(object_ids: list[str]) -> str:
             """Resolve collisions between specified objects on a surface.
 

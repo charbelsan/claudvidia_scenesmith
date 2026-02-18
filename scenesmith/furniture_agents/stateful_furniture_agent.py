@@ -10,13 +10,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from agents import Agent, FunctionTool, Runner, RunResult
 from omegaconf import DictConfig
 
-from scenesmith.agent_utils.base_stateful_agent import (
-    BaseStatefulAgent,
-    log_agent_usage,
-)
+from scenesmith.agent_utils.base_stateful_agent import BaseStatefulAgent
 from scenesmith.agent_utils.placement_noise import PlacementNoiseMode
 from scenesmith.agent_utils.reachability import (
     compute_reachability,
@@ -94,7 +90,7 @@ class StatefulFurnitureAgent(BaseStatefulAgent, BaseFurnitureAgent):
         # Context image for designer initialization (furniture-specific).
         self.context_image_path: Path | None = None
 
-    def _create_designer_agent(self, tools: list[FunctionTool]) -> Agent:
+    def _create_designer_agent(self, tools: list) -> Any:
         """Create designer agent with tools.
 
         Args:
@@ -111,7 +107,7 @@ class StatefulFurnitureAgent(BaseStatefulAgent, BaseFurnitureAgent):
             has_reference_image=self.context_image_path is not None,
         )
 
-    def _create_critic_tools(self) -> list[FunctionTool]:
+    def _create_critic_tools(self) -> list:
         """Create critic tools with read-only scene access.
 
         Returns:
@@ -135,8 +131,8 @@ class StatefulFurnitureAgent(BaseStatefulAgent, BaseFurnitureAgent):
         ]
 
     def _create_critic_agent(
-        self, scene: RoomScene, tools: list[FunctionTool]
-    ) -> Agent:
+        self, scene: RoomScene, tools: list
+    ) -> Any:
         """Create critic agent with scene context.
 
         Args:
@@ -156,8 +152,8 @@ class StatefulFurnitureAgent(BaseStatefulAgent, BaseFurnitureAgent):
         )
 
     def _create_planner_agent(
-        self, scene: RoomScene, tools: list[FunctionTool]
-    ) -> Agent:
+        self, scene: RoomScene, tools: list
+    ) -> Any:
         """Create planner agent with scene-specific context.
 
         Args:
@@ -179,7 +175,7 @@ class StatefulFurnitureAgent(BaseStatefulAgent, BaseFurnitureAgent):
             early_finish_min_score=self.cfg.early_finish_min_score,
         )
 
-    def _create_designer_tools(self) -> list[FunctionTool]:
+    def _create_designer_tools(self) -> list:
         """Create designer tools with captured dependencies.
 
         Returns:
@@ -290,19 +286,8 @@ class StatefulFurnitureAgent(BaseStatefulAgent, BaseFurnitureAgent):
             prompt_enum=FurnitureAgentPrompts.STATEFUL_PLANNER_RUNNER_INSTRUCTION,
         )
 
-        # Run the furniture placement workflow.
-        result: RunResult = await Runner.run(
-            starting_agent=self.planner,
-            input=runner_instruction,
-            max_turns=self.cfg.agents.planner_agent.max_turns,
-            run_config=self._create_run_config(),
-        )
-        log_agent_usage(result=result, agent_name="PLANNER (FURNITURE)")
-
-        if result.final_output:
-            log_agent_response(
-                response=result.final_output, agent_name="PLANNER (FURNITURE)"
-            )
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
         # Compute final critique and scores for completed scene.
         # Check if scene changed since last checkpoint to avoid redundant critique.

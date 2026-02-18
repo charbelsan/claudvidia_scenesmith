@@ -21,7 +21,19 @@ from scenesmith.prompts.registry import MaterialGenerationPrompts
 from scenesmith.utils.material import Material
 
 if TYPE_CHECKING:
-    from scenesmith.agent_utils.image_generation import BaseImageGenerator
+    from typing import Protocol
+
+    class BaseImageGenerator(Protocol):
+        """Protocol for image generators (was in deleted image_generation module)."""
+
+        def generate_images(
+            self,
+            style_prompt: str,
+            object_descriptions: list[str],
+            output_paths: list,
+            size: str = ...,
+            labels: list[str] = ...,
+        ) -> None: ...
 
 console_logger = logging.getLogger(__name__)
 

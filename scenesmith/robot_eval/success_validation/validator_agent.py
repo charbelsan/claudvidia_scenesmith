@@ -10,9 +10,8 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
-from agents import Agent, Runner, RunResult
 from omegaconf import DictConfig
 from pydantic import BaseModel, Field
 
@@ -124,43 +123,20 @@ class SuccessValidatorAgent:
     """Optional unique ID for render output directories. Use when running
     multiple validations in parallel to avoid file conflicts."""
 
-    _agent: Agent | None = field(default=None, init=False)
+    _agent: Any | None = field(default=None, init=False)
     """Lazily initialized agent."""
 
-    def _create_agent(self) -> Agent:
-        """Create the validator agent with tools and prompt."""
-        # Create state tools (always available).
-        state_tools = create_state_tools(self.scene)
+    def _create_agent(self) -> Any:
+        """Create the validator agent with tools and prompt.
 
-        # Create vision tools only if blender_server is provided.
-        if self.blender_server is not None:
-            vision_tools = create_vision_tools(
-                scene=self.scene,
-                blender_server=self.blender_server,
-                render_id=self.render_id,
-            )
-            all_tools = state_tools + vision_tools
-        else:
-            console_logger.warning(
-                "No BlenderServer provided - vision tools disabled for validation"
-            )
-            all_tools = state_tools
-
-        prompt = prompt_registry.get_prompt(
-            prompt_enum=RobotEvalPrompts.SUCCESS_VALIDATOR,
-        )
-
-        # Create agent with structured output.
-        return Agent(
-            name="success_validator",
-            model=self.cfg.openai.model,
-            tools=all_tools,
-            instructions=prompt,
-            output_type=ValidationResult,
-        )
+        Returns:
+            None. Now handled by Claude Code subagents via MCP.
+        """
+        # Now handled by Claude Code subagents via MCP
+        return None
 
     @property
-    def agent(self) -> Agent:
+    def agent(self) -> Any:
         """Get or create the validator agent."""
         if self._agent is None:
             self._agent = self._create_agent()
@@ -180,31 +156,8 @@ class SuccessValidatorAgent:
         """
         console_logger.info(f"Validating task: {task_description[:100]}...")
 
-        # Build the validation instruction from prompt registry.
-        instruction = prompt_registry.get_prompt(
-            RobotEvalPrompts.VALIDATION_INSTRUCTION,
-            task_description=task_description,
-        )
-
-        # Run the agent.
-        result: RunResult = await Runner.run(
-            starting_agent=self.agent, input=instruction, max_turns=max_turns
-        )
-
-        # Extract structured output.
-        validation_result = result.final_output_as(ValidationResult)
-
-        # Log results.
-        console_logger.info(
-            f"Validation complete: score={validation_result.overall_score:.2f}, "
-            f"success={validation_result.overall_success}"
-        )
-        for req in validation_result.requirements:
-            console_logger.info(
-                f"  [{req.score.value}] {req.description}: {req.reasoning[:100]}..."
-            )
-
-        return validation_result
+        # Now handled by Claude Code subagents via MCP
+        raise NotImplementedError("Use Claude Code subagents via MCP server")
 
 
 async def validate_task(

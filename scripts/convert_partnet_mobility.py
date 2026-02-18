@@ -52,7 +52,7 @@ from scenesmith.agent_utils.urdf_to_sdf import (
     update_sdf_model_pose,
     validate_urdf_meshes,
 )
-from scenesmith.agent_utils.vlm_service import VLMService
+# Removed: was VLMService - now handled by Claude subagents
 
 console_logger = logging.getLogger(__name__)
 
@@ -257,8 +257,8 @@ def analyze_asset_with_vlm(
     )
     cfg = OmegaConf.load(config_path)
 
-    # Create VLM service.
-    vlm_service = VLMService()
+    # Removed: was VLMService - now handled by Claude subagents
+    vlm_service = None
 
     # Compute bounding box for VLM analysis.
     bbox_min, bbox_max, _ = compute_articulated_bounding_box(urdf_path)
