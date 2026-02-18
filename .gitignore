@@ -1,4 +1,5 @@
 .venv
+.venv311
 .mujoco_venv
 *.egg-info
 __pycache__
@@ -11,3 +12,11 @@ debug_furniture_agent
 .pytest_cache/
 .vscode/
 .mcp.json
+
+# NVIDIA USD asset cache (downloaded by scripts/download_assets.py)
+# Users run: python scripts/download_assets.py
+outputs/
+*.zip
+
+# Environment variables (contains API keys — never commit)
+.env

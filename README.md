@@ -47,6 +47,8 @@ Code for "SceneSmith: Agentic Generation of Simulation-Ready Indoor Scenes".
 
 ## Table of Contents
 
+- [Quick Start (NVIDIA + Claude)](#-quick-start-nvidia--claude)
+  - [3D Assets — Two Options](#-3d-assets--two-options)
 - [Installation](#-installation)
   - [Local Install](#local-install)
   - [Multi-GPU Rendering](#multi-gpu-rendering-support-optional)
@@ -67,6 +69,123 @@ Code for "SceneSmith: Agentic Generation of Simulation-Ready Indoor Scenes".
 - [Robot Evaluation](#-robot-evaluation)
 - [Testing](#-testing)
 - [License](#-license)
+
+---
+
+## 🚀 Quick Start (NVIDIA + Claude)
+
+This version of SceneSmith replaces OpenAI Agents with **Claude Code subagents** and uses **NVIDIA Omniverse USD assets** instead of generative 3D models.
+
+### Minimum setup (zero configuration)
+
+```sh
+git clone https://github.com/your-org/scenesmith
+cd scenesmith
+uv sync
+# That's it — works out of the box using Blender procedural asset generation
+python run_scenesmith.py "a cozy living room with a sofa and coffee table"
+```
+
+### Full setup (recommended)
+
+```sh
+# 1. Set your Anthropic API key (required)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# 2. (Option A) Free NVIDIA API key for AI-powered USD asset search
+#    Get your key in 2 minutes at: https://build.nvidia.com/nvidia/usdsearch
+export NVIDIA_API_KEY="nvapi-..."
+
+# 2. (Option B) Download NVIDIA SimReady USD packs locally (no key needed)
+python scripts/download_assets.py          # Downloads ~9.4 GB of furniture models
+python scripts/download_assets.py --list   # See all available packs
+
+# 3. Start the MCP server
+python -m scenesmith_mcp.server
+
+# 4. Run a scene generation
+python run_scenesmith.py "modern kitchen with island and dining area"
+```
+
+---
+
+## 🎨 3D Assets — Two Options
+
+SceneSmith supports two ways to get 3D assets. Both can be used together.
+
+### Option A — NVIDIA USD Search API (recommended, free API key)
+
+Uses NVIDIA's AI-powered USD Search to find physics-ready 3D models by natural language description.
+
+**Setup** (2 minutes):
+1. Go to **https://build.nvidia.com/nvidia/usdsearch**
+2. Click **"Get API Key"** → sign in with free NVIDIA Developer account
+3. Copy your key (format: `nvapi-...`)
+4. Set the environment variable:
+   ```sh
+   export NVIDIA_API_KEY="nvapi-YOUR_KEY_HERE"
+   ```
+   Or add to `.env` file in the project root:
+   ```
+   NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+   ```
+
+**What you get:**
+- Natural language search: `"modern wooden sofa"`, `"stainless steel refrigerator"`
+- 200,000+ SimReady USD assets from the NVIDIA catalog
+- Assets include pre-configured physics (rigid body, collision geometry)
+- Free tier: ~10,000 requests
+
+### Option B — Download NVIDIA asset packs locally (no account needed)
+
+Download free USD asset packs directly from NVIDIA CloudFront. No API key, no account required.
+
+```sh
+# Download the recommended SimReady Furniture pack (9.4 GB, 202 models)
+python scripts/download_assets.py
+
+# Or download a specific pack
+python scripts/download_assets.py --pack residential   # 22.5 GB, 507 items
+python scripts/download_assets.py --pack commercial    # 5.8 GB, 82 items
+
+# See all available packs with sizes
+python scripts/download_assets.py --list
+
+# Preview what would be downloaded (no actual download)
+python scripts/download_assets.py --dry-run
+```
+
+Assets are stored in `~/.cache/scenesmith/assets/` (not in the git repo) and auto-discovered by the MCP server.
+
+| Pack | Size | Items | Best for |
+|------|------|-------|----------|
+| `furniture` | 9.4 GB | 202 | **Living rooms, offices** (recommended) |
+| `residential` | 22.5 GB | 507 | Full residential scenes |
+| `commercial` | 5.8 GB | 82 | Office/commercial spaces |
+| `materials` | 8.2 GB | 161 | High-quality surface materials |
+| `scenes` | 26 GB | 441 | Complete scene templates |
+
+**License:** [NVIDIA Omniverse License Agreement](https://docs.omniverse.nvidia.com/usd/latest/usd_content_samples/downloadable_packs.html) — free for commercial and non-commercial use.
+
+### Option C — Blender procedural (zero configuration, always available)
+
+If neither Option A nor B is configured, SceneSmith automatically generates 3D assets using Blender Python. No downloads, no API keys, works on any machine with Blender installed.
+
+```sh
+# Works without any configuration
+python run_scenesmith.py "bedroom with a bed and wardrobe"
+```
+
+### Comparison
+
+| | Option A (NVIDIA API) | Option B (Local packs) | Option C (Blender) |
+|---|---|---|---|
+| Setup | Free key, 2 min | `python scripts/download_assets.py` | None |
+| Disk space | None | 9–26 GB | None |
+| Asset quality | High (SimReady) | High (SimReady) | Procedural |
+| Works offline | No | Yes | Yes |
+| Internet required | Yes | Download only | No |
+| Asset variety | 200K+ catalog | 202–507 models | Unlimited |
 
 ---
 
@@ -192,8 +311,16 @@ Set the following environment variables. These are required for both local and
 Docker usage (Docker Compose forwards them from the host).
 
 ```sh
-# Required: OpenAI API key for GPT-5 agents and default image generation
-export OPENAI_API_KEY="your-openai-key"
+# Required: Anthropic API key (Claude agents)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Optional (Option A): NVIDIA API key for USD asset search
+# Free key at: https://build.nvidia.com/nvidia/usdsearch
+export NVIDIA_API_KEY="nvapi-..."
+
+# Legacy (original paper): OpenAI API key for GPT-5 agents
+# Not required for the NVIDIA + Claude version
+# export OPENAI_API_KEY="your-openai-key"
 
 # Optional: Google API key for Gemini image generation backend
 # Only required if using image_generation.backend: "gemini" in config
