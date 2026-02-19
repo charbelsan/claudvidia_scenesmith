@@ -12,6 +12,7 @@ from pathlib import Path
 
 import omni.usd
 import omni.kit.app
+import omni.kit.viewport.utility as vp_util
 from pxr import Gf, UsdGeom, UsdLux, UsdPhysics, PhysxSchema, Sdf
 
 A = Path("/home/ubuntu/claudvidia_scenesmith/outputs/bedroom/assets")
@@ -167,12 +168,32 @@ overhead.CreateHeightAttr(5.5)
 UsdGeom.Xformable(overhead.GetPrim()).AddTranslateOp().Set(Gf.Vec3d(RW/2, RD/2, 3.5))
 UsdGeom.Xformable(overhead.GetPrim()).AddRotateXYZOp().Set(Gf.Vec3f(-90, 0, 0))
 
-# Camera
+# Camera prim avec LookAt — intérieur coin sud-est, niveau regard, vers le lit
+# Pièce: X 0..5.0, Y 0..5.5, Z 0..2.8
+eye    = Gf.Vec3d(4.6, 0.4, 1.2)    # intérieur coin SE, 1.2m de haut
+center = Gf.Vec3d(1.0, 4.3, 0.5)    # viser le lit + côté armoire (nord-ouest)
+up     = Gf.Vec3d(0, 0, 1)
+
+view_mat = Gf.Matrix4d()
+view_mat.SetLookAt(eye, center, up)
+cam_to_world = view_mat.GetInverse()
+
 cam = UsdGeom.Camera.Define(stage, "/World/Camera")
 xf = UsdGeom.Xformable(cam.GetPrim())
-xf.AddTranslateOp().Set(Gf.Vec3d(1.5, -1.2, 2.2))
-xf.AddRotateXYZOp().Set(Gf.Vec3f(-18, 0, 22))
-cam.GetFocalLengthAttr().Set(18.0)
+xf.ClearXformOpOrder()
+xf.AddTransformOp().Set(cam_to_world)
+cam.GetFocalLengthAttr().Set(16.0)
+cam.GetClippingRangeAttr().Set(Gf.Vec2f(0.01, 100.0))
+
+# Switcher le viewport vers la Camera prim
+viewport = vp_util.get_active_viewport()
+if viewport:
+    viewport.camera_path = "/World/Camera"
+
+# Sauvegarder la scène
+out_usd = "/home/ubuntu/claudvidia_scenesmith/outputs/bedroom/bedroom.usd"
+omni.usd.get_context().save_as_stage(out_usd)
+print(f"  Scene saved: {out_usd}")
 
 print()
 print("=" * 60)
